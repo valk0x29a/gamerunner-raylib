@@ -9,10 +9,8 @@
 
 typedef struct entity
 {
-    int xPos;
-    int yPos;
-    int xSize;
-    int ySize;
+    Vector2 pos;
+    Vector2 size;
     Color defaultColor;
     uint entityType;
     int speed;
@@ -37,10 +35,10 @@ void addEntity(entity* newEntity)
 entity* createNewEntity(int xPos, int yPos, int xSize, int ySize, Color defaultColor, uint entityType, int speed, int dashDistance)
 {
     entity* newEntity = malloc(sizeof(entity));
-    newEntity->xPos = xPos;
-    newEntity->yPos = yPos;
-    newEntity->xSize = xSize;
-    newEntity->ySize = ySize;
+    newEntity->pos.x = xPos;
+    newEntity->pos.y = yPos;
+    newEntity->size.x = xSize;
+    newEntity->size.y = ySize;
     newEntity->defaultColor = defaultColor;
     newEntity->entityType = entityType;
     newEntity->speed = speed;
@@ -50,10 +48,8 @@ entity* createNewEntity(int xPos, int yPos, int xSize, int ySize, Color defaultC
 entity* allocNewEntity(entity copiedEntity)
 {
     entity* newEntity = malloc(sizeof(entity));
-    newEntity->xPos = copiedEntity.xPos;
-    newEntity->yPos = copiedEntity.yPos;
-    newEntity->xSize = copiedEntity.xSize;
-    newEntity->ySize = copiedEntity.ySize;
+    newEntity->pos = copiedEntity.pos;
+    newEntity->size = copiedEntity.size;
     newEntity->defaultColor = copiedEntity.defaultColor;
 }
 
@@ -68,22 +64,22 @@ void UpdatePlayer()
         int dashYDirection = 0;
         if(IsKeyDown(KEY_W))
         {
-            player->yPos -= speed;
+            player->pos.y -= speed;
             dashYDirection = -1;
         }
         if(IsKeyDown(KEY_S))
         {
-            player->yPos += speed;
+            player->pos.y += speed;
             dashYDirection = 1;
         }
         if(IsKeyDown(KEY_A))
         {
-            player->xPos -= speed;
+            player->pos.x -= speed;
             dashXDirection = -1;
         }
         if(IsKeyDown(KEY_D))
         {
-            player->xPos += speed;
+            player->pos.x += speed;
             dashXDirection = 1;
         }
         if(IsKeyPressed(KEY_SPACE))
@@ -92,8 +88,8 @@ void UpdatePlayer()
             {
                 dashYDirection = 1;
             }
-            player->xPos += dashXDirection * player->dashDistance;
-            player->yPos += dashYDirection * player->dashDistance;
+            player->pos.x += dashXDirection * player->dashDistance;
+            player->pos.y += dashYDirection * player->dashDistance;
         }
     }
 }
@@ -104,12 +100,12 @@ void UpdateEnemies()
         if(entities[i]->entityType != ENEMY) { continue; }
         float minDist = FLT_MAX;
         int minIndex = -1;
-        int xPos = entities[i]->xPos;
-        int yPos = entities[i]->yPos;
+        int xPos = entities[i]->pos.x;
+        int yPos = entities[i]->pos.y;
         for(int j = 0; j < firstFreeIndex; j++)
         {
             if(entities[j]->entityType != PLAYER) { continue; }
-            float dist = (xPos - entities[j]->xPos)*(xPos - entities[j]->xPos) + (yPos - entities[j]->yPos)*(yPos - entities[j]->yPos);
+            float dist = (xPos - entities[j]->pos.x)*(xPos - entities[j]->pos.x) + (yPos - entities[j]->pos.y)*(yPos - entities[j]->pos.y);
             if(dist < minDist)
             {
                 minDist = dist;
@@ -119,21 +115,21 @@ void UpdateEnemies()
         if(minIndex >= 0)
         {
             int speed = entities[i]->speed;
-            if(xPos < entities[minIndex]->xPos)
+            if(xPos < entities[minIndex]->pos.x)
             {
-                entities[i]->xPos += speed;
+                entities[i]->pos.x += speed;
             }
-            if(xPos > entities[minIndex]->xPos)
+            if(xPos > entities[minIndex]->pos.x)
             {
-                entities[i]->xPos -= speed;
+                entities[i]->pos.x -= speed;
             }
-            if(yPos < entities[minIndex]->yPos)
+            if(yPos < entities[minIndex]->pos.y)
             {
-                entities[i]->yPos += speed;
+                entities[i]->pos.y += speed;
             }
-            if(yPos > entities[minIndex]->yPos)
+            if(yPos > entities[minIndex]->pos.y)
             {
-                entities[i]->yPos -= speed;
+                entities[i]->pos.y -= speed;
             }
         }
     }
@@ -146,7 +142,7 @@ int main()
     InitWindow(800, 450, "raylib example - basic window");
 
     int count = 0;
-    entity* testEntity = createNewEntity(400, 200, 20, 20, VIOLET, PLAYER, 2, 128);
+    entity* testEntity = createNewEntity(400, 200, 20, 20, VIOLET, PLAYER, 2, 128); 
     addEntity(testEntity);
     entity* anotherEntity = createNewEntity(0,0,100, 100, GOLD, DEFAULT, 0, 0);
     addEntity(anotherEntity);
@@ -154,20 +150,17 @@ int main()
     addEntity(meow);
     while (!WindowShouldClose())
     {
-        char text = (char)(count + '0') + '\0';
-        // text += (char)(count + '0') + '\0';
         BeginDrawing();
             ClearBackground(SKYBLUE);
             UpdatePlayer();
             UpdateEnemies();
             for(int i = 0; i < firstFreeIndex; i++)
             {
-                DrawRectangle(entities[i]->xPos, entities[i]->yPos, entities[i]->xSize, entities[i]->ySize, entities[i]->defaultColor);
+                DrawRectangleV(entities[i]->pos, entities[i]->size, entities[i]->defaultColor);
             }
 
             DrawFPS(0, 0);
         EndDrawing();
-        count++;
     }
 
     CloseWindow();
