@@ -1,16 +1,20 @@
 #include "raylib.h"
+#include "raymath.h"
 #include <stdlib.h>
 #include <float.h>
+#include <stdio.h>
 
 #define DEFAULT 0
 #define PLAYER 1 << 1
 #define UPGRADER 1 << 2
 #define ENEMY 1 << 3
+#define Vector2(x,y) (Vector2){x, y}
 
 typedef struct entity
 {
     Vector2 pos;
     Vector2 size;
+    Vector2 pivot;
     Color defaultColor;
     uint entityType;
     float speed;
@@ -20,6 +24,14 @@ typedef struct entity
 int firstFreeIndex = 0;
 int capacity = 2;
 entity** entities;
+
+Vector2 GetEntityPivot(entity* entity)
+{
+    // int x = entity->pos.x + entity->pivot.x * entity->size.x;
+    // int y = entity->pos.y + entity->pivot.y * entity->size.y;
+    Vector2 offset = Vector2Multiply(entity->pivot, entity->size);
+    return Vector2Add(entity->pos, offset);
+}
 
 void addEntity(entity* newEntity)
 {
@@ -32,13 +44,12 @@ void addEntity(entity* newEntity)
     firstFreeIndex++;
 }
 
-entity* createNewEntity(int xPos, int yPos, int xSize, int ySize, Color defaultColor, uint entityType, float speed, int dashDistance)
+entity* createNewEntity(Vector2 pos, Vector2 size, Vector2 pivot, Color defaultColor, uint entityType, float speed, int dashDistance)
 {
     entity* newEntity = malloc(sizeof(entity));
-    newEntity->pos.x = xPos;
-    newEntity->pos.y = yPos;
-    newEntity->size.x = xSize;
-    newEntity->size.y = ySize;
+    newEntity->pos = pos;
+    newEntity->size = size;
+    newEntity->pivot = pivot;
     newEntity->defaultColor = defaultColor;
     newEntity->entityType = entityType;
     newEntity->speed = speed;
@@ -50,7 +61,11 @@ entity* allocNewEntity(entity copiedEntity)
     entity* newEntity = malloc(sizeof(entity));
     newEntity->pos = copiedEntity.pos;
     newEntity->size = copiedEntity.size;
+    newEntity->pivot = copiedEntity.pivot;
     newEntity->defaultColor = copiedEntity.defaultColor;
+    newEntity->entityType = copiedEntity.entityType;
+    newEntity->speed = copiedEntity.speed;
+    newEntity->dashDistance = copiedEntity.dashDistance;
 }
 
 void UpdatePlayer()
@@ -91,6 +106,24 @@ void UpdatePlayer()
             player->pos.x += dashXDirection * player->dashDistance;
             player->pos.y += dashYDirection * player->dashDistance;
         }
+
+        for(int j = 0; j < firstFreeIndex; j++)
+        {
+            if(j == i) { continue; }
+            if(entities[j]->entityType != ENEMY) { continue; }
+            bool isInsideOnXAxis = player->pos.x >= entities[j]->pos.x && player->pos.x <= entities[j]->pos.x + entities[j]->size.x;
+            bool isInsideOnYAxis = player->pos.y >= entities[j]->pos.y && player->pos.y <= entities[j]->pos.y + entities[j]->size.y;
+            if(isInsideOnXAxis && isInsideOnYAxis) 
+            { 
+                printf("Player is inside Enemy!!! ");
+                entities[j]->defaultColor = RED;
+            }
+            else
+            {
+                entities[j]->defaultColor = DARKPURPLE;
+            }
+        }
+        printf("x: %f y: %f \n", player->pos.x, player->pos.y);
     }
 }
 void UpdateEnemies()
@@ -115,19 +148,21 @@ void UpdateEnemies()
         if(minIndex >= 0)
         {
             float speed = entities[i]->speed;
-            if(xPos < entities[minIndex]->pos.x)
+            Vector2 playerPivot = GetEntityPivot(entities[minIndex]);
+            Vector2 enemyPivot = GetEntityPivot(entities[i]);
+            if(enemyPivot.x < playerPivot.x)
             {
                 entities[i]->pos.x += speed;
             }
-            if(xPos > entities[minIndex]->pos.x)
+            if(enemyPivot.x > playerPivot.x)
             {
                 entities[i]->pos.x -= speed;
             }
-            if(yPos < entities[minIndex]->pos.y)
+            if(enemyPivot.y < playerPivot.y)
             {
                 entities[i]->pos.y += speed;
             }
-            if(yPos > entities[minIndex]->pos.y)
+            if(enemyPivot.y > playerPivot.y)
             {
                 entities[i]->pos.y -= speed;
             }
@@ -142,12 +177,14 @@ int main()
     InitWindow(800, 450, "GameRunner - Raylib - C");
 
     int count = 0;
-    entity* testEntity = createNewEntity(400, 200, 20, 20, VIOLET, PLAYER, 2.5f, 128); 
+    entity* testEntity = createNewEntity(Vector2(400, 200), Vector2(20, 20), Vector2(0.5f, 0.5f), VIOLET, PLAYER, 2.5f, 128); 
     addEntity(testEntity);
-    entity* anotherEntity = createNewEntity(0,0,100, 100, GOLD, DEFAULT, 0, 0);
+    entity* anotherEntity = createNewEntity(Vector2(0,0), Vector2(100, 100), Vector2(0.5f, 0.5f), GOLD, DEFAULT, 0, 0);
     addEntity(anotherEntity);
-    entity* meow = createNewEntity(100, 200, 64, 64, DARKPURPLE, ENEMY, 0.5f, 0);
-    addEntity(meow);
+    entity* enemy = createNewEntity(Vector2(100, 200), Vector2(64, 64), Vector2(0.5f, 0.5f), DARKPURPLE, ENEMY, 0.5f, 0);
+    addEntity(enemy);
+    entity* fastEnemy = createNewEntity(Vector2(200, 300), Vector2(16, 16), Vector2(0.5f, 0.5f), DARKPURPLE, ENEMY, 1.5f, 0);
+    addEntity(fastEnemy);
     while (!WindowShouldClose())
     {
         BeginDrawing();
