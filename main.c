@@ -25,12 +25,16 @@ int firstFreeIndex = 0;
 int capacity = 2;
 entity** entities;
 
-Vector2 GetEntityPivot(entity* entity)
+// Vector2 GetEntityPivot(entity* entity)
+// {
+//     Vector2 offset = Vector2Multiply(entity->pivot, entity->size);
+//     return Vector2Add(entity->pos, offset);
+// }
+
+Vector2 GetEntityCorner(entity* entity)
 {
-    // int x = entity->pos.x + entity->pivot.x * entity->size.x;
-    // int y = entity->pos.y + entity->pivot.y * entity->size.y;
     Vector2 offset = Vector2Multiply(entity->pivot, entity->size);
-    return Vector2Add(entity->pos, offset);
+    return Vector2Subtract(entity->pos, offset);
 }
 
 void addEntity(entity* newEntity)
@@ -111,8 +115,10 @@ void UpdatePlayer()
         {
             if(j == i) { continue; }
             if(entities[j]->entityType != ENEMY) { continue; }
-            bool isInsideOnXAxis = player->pos.x >= entities[j]->pos.x && player->pos.x <= entities[j]->pos.x + entities[j]->size.x;
-            bool isInsideOnYAxis = player->pos.y >= entities[j]->pos.y && player->pos.y <= entities[j]->pos.y + entities[j]->size.y;
+            Vector2 playerCorner = GetEntityCorner(player);
+            Vector2 enemyCorner = GetEntityCorner(entities[j]);
+            bool isInsideOnXAxis = playerCorner.x >= enemyCorner.x && playerCorner.x <= enemyCorner.x + entities[j]->size.x;
+            bool isInsideOnYAxis = playerCorner.y >= enemyCorner.y && playerCorner.y <= enemyCorner.y + entities[j]->size.y;
             if(isInsideOnXAxis && isInsideOnYAxis) 
             { 
                 printf("Player is inside Enemy!!! ");
@@ -148,21 +154,21 @@ void UpdateEnemies()
         if(minIndex >= 0)
         {
             float speed = entities[i]->speed;
-            Vector2 playerPivot = GetEntityPivot(entities[minIndex]);
-            Vector2 enemyPivot = GetEntityPivot(entities[i]);
-            if(enemyPivot.x < playerPivot.x)
+            Vector2 enemyPos = entities[i]->pos;
+            Vector2 playerPos = entities[minIndex]->pos;
+            if(enemyPos.x < playerPos.x)
             {
                 entities[i]->pos.x += speed;
             }
-            if(enemyPivot.x > playerPivot.x)
+            if(enemyPos.x > playerPos.x)
             {
                 entities[i]->pos.x -= speed;
             }
-            if(enemyPivot.y < playerPivot.y)
+            if(enemyPos.y < playerPos.y)
             {
                 entities[i]->pos.y += speed;
             }
-            if(enemyPivot.y > playerPivot.y)
+            if(enemyPos.y > playerPos.y)
             {
                 entities[i]->pos.y -= speed;
             }
@@ -193,7 +199,9 @@ int main()
             UpdateEnemies();
             for(int i = 0; i < firstFreeIndex; i++)
             {
-                DrawRectangleV(entities[i]->pos, entities[i]->size, entities[i]->defaultColor);
+                Vector2 offset = Vector2Multiply(entities[i]->pivot, entities[i]->size);
+                Vector2 startPos = Vector2Subtract(entities[i]->pos, offset);
+                DrawRectangleV(startPos, entities[i]->size, entities[i]->defaultColor);
             }
 
             DrawFPS(0, 0);
