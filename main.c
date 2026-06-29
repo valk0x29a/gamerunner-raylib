@@ -13,7 +13,7 @@ typedef struct entity
     Vector2 size;
     Color defaultColor;
     uint entityType;
-    int speed;
+    float speed;
     int dashDistance;
 } entity;
 
@@ -32,7 +32,7 @@ void addEntity(entity* newEntity)
     firstFreeIndex++;
 }
 
-entity* createNewEntity(int xPos, int yPos, int xSize, int ySize, Color defaultColor, uint entityType, int speed, int dashDistance)
+entity* createNewEntity(int xPos, int yPos, int xSize, int ySize, Color defaultColor, uint entityType, float speed, int dashDistance)
 {
     entity* newEntity = malloc(sizeof(entity));
     newEntity->pos.x = xPos;
@@ -114,7 +114,7 @@ void UpdateEnemies()
         }
         if(minIndex >= 0)
         {
-            int speed = entities[i]->speed;
+            float speed = entities[i]->speed;
             if(xPos < entities[minIndex]->pos.x)
             {
                 entities[i]->pos.x += speed;
@@ -139,14 +139,14 @@ int main()
 {
     entities = malloc(sizeof(entity*) * capacity);
     SetConfigFlags(FLAG_VSYNC_HINT);
-    InitWindow(800, 450, "raylib example - basic window");
+    InitWindow(800, 450, "GameRunner - Raylib - C");
 
     int count = 0;
-    entity* testEntity = createNewEntity(400, 200, 20, 20, VIOLET, PLAYER, 2, 128); 
+    entity* testEntity = createNewEntity(400, 200, 20, 20, VIOLET, PLAYER, 2.5f, 128); 
     addEntity(testEntity);
     entity* anotherEntity = createNewEntity(0,0,100, 100, GOLD, DEFAULT, 0, 0);
     addEntity(anotherEntity);
-    entity* meow = createNewEntity(100, 200, 64, 64, DARKPURPLE, ENEMY, 1, 0);
+    entity* meow = createNewEntity(100, 200, 64, 64, DARKPURPLE, ENEMY, 0.5f, 0);
     addEntity(meow);
     while (!WindowShouldClose())
     {
