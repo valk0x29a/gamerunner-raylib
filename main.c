@@ -235,8 +235,6 @@ void UpdatePlayer()
             bool colliding = false;
             int entityIndex = -1;
             Vector2 result = RayCastHit(player->position, mousePosition, ENEMY, &colliding, &entityIndex);
-            printf("colliding: %d \n", colliding);
-            printf("entityIndex: %d \n", entityIndex);
             if(colliding)
             {
                 entities[entityIndex]->health -= player->attackDamage;
