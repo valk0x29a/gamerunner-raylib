@@ -32,8 +32,6 @@ int firstFreeIndex = 0;
 int capacity = 2;
 entity** entities;
 
-int collisionCount = 0;
-
 Vector2 GetEntityCorner(entity* entity)
 {
     Vector2 offset = Vector2Multiply(entity->pivot, entity->size);
@@ -243,19 +241,6 @@ void UpdatePlayer()
                     removeEntity(entityIndex);
                 }
             }
-            // for(int j = 0; j < firstFreeIndex; j++)
-            // {
-            //     if(j == i) { continue; }
-            //     if(entities[j]->entityType != ENEMY) { continue; }
-            //     //if(isRayCollidingWithEntity(player->position, mousePosition, entities[j]))
-            //     {
-            //         entities[j]->health -= player->attackDamage;
-            //         if(entities[j]->health <= 0)
-            //         {
-            //             removeEntity(j);
-            //         }
-            //     }
-            // }
         }
 
         for(int j = 0; j < firstFreeIndex; j++)
