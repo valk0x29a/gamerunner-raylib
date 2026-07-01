@@ -15,6 +15,8 @@
 #define max(a, b) a > b ? a : b
 
 void ReloadGame();
+void EndWave();
+void SpawnEnemies();
 
 typedef struct RayCastHitResult
 {
@@ -48,6 +50,14 @@ int firstFreeIndex = 0;
 int capacity = 2;
 entity** entities;
 
+int enemiesCount = 0;
+
+int currentWave = 0;
+
+float nextWaveTimer = 5.0f;
+
+entity* player;
+
 Vector2 GetEntityCorner(entity* entity)
 {
     Vector2 offset = Vector2Multiply(entity->pivot, entity->size);
@@ -68,11 +78,20 @@ void addEntity(entity* newEntity)
         entities = realloc(entities, sizeof(entity*) * capacity);
     }
     firstFreeIndex++;
+    if(newEntity->entityType == ENEMY) { enemiesCount++; }
 }
 
 void removeEntity(int entityIndex)
 {
     int lastFilledIndex = firstFreeIndex-1;
+    if(entities[lastFilledIndex]->entityType == ENEMY)
+    {
+        enemiesCount--;
+        if(enemiesCount <= 0)
+        {
+            EndWave();
+        }
+    }
     if(entityIndex != lastFilledIndex)
     {
         entity* endEntity = entities[lastFilledIndex];
@@ -82,6 +101,7 @@ void removeEntity(int entityIndex)
     }
     free(entities[lastFilledIndex]);
     firstFreeIndex--;
+
 }
 
 entity* createNewEntity(Vector2 pos, Vector2 size, Vector2 pivot, Color defaultColor, uint entityType, float speed, int dashDistance, int maxNumberOfDashes, float dashCooldown, int maxHealth, int attackDamage, float attackCooldown)
@@ -374,12 +394,34 @@ void UpdateEnemies()
     }
 }
 
+void UpdateWaves()
+{
+    if(nextWaveTimer > 0)
+    {
+        nextWaveTimer -= GetFrameTime();
+        if(nextWaveTimer <= 0)
+        {
+            SpawnEnemies();
+            currentWave++;
+        }
+    }
+}
+
+void EndWave()
+{
+    nextWaveTimer = 5.0f;
+}
+
 void SpawnEntites()
 {
-    entity* testEntity = createNewEntity(Vector2(400, 200), Vector2(20, 20), Vector2(0.5f, 0.5f), VIOLET, PLAYER, 2.5f, 128, 2, 2.0f, 100, 10, 0.5f);
-    addEntity(testEntity);
+    player = createNewEntity(Vector2(400, 200), Vector2(20, 20), Vector2(0.5f, 0.5f), VIOLET, PLAYER, 2.5f, 128, 2, 2.0f, 100, 10, 0.5f);
+    addEntity(player);
     entity* anotherEntity = createNewEntity(Vector2(0,0), Vector2(100, 100), Vector2(0.5f, 0.5f), GOLD, DEFAULT, 0, 0, 0, 0, 0 ,0, 0);
     addEntity(anotherEntity);
+}
+
+void SpawnEnemies()
+{
     entity* enemy = createNewEntity(Vector2(100, 200), Vector2(64, 64), Vector2(0.5f, 0.5f), DARKPURPLE, ENEMY, 0.5f, 0, 0, 0, 40, 5, 1.0f);
     addEntity(enemy);
     entity* fastEnemy = createNewEntity(Vector2(200, 300), Vector2(16, 16), Vector2(0.5f, 0.5f), DARKPURPLE, ENEMY, 1.5f, 0, 0, 0, 20, 10, 1.0f);
@@ -389,6 +431,8 @@ void SpawnEntites()
 void ReloadGame()
 {
     firstFreeIndex = 0;
+    nextWaveTimer = 5.0f;
+    currentWave = 0;
     SpawnEntites();
 }
 
@@ -399,17 +443,30 @@ int main()
     InitWindow(800, 450, "GameRunner - Raylib - C");
 
     SpawnEntites();
+    const char* waveText;
     while (!WindowShouldClose())
     {
         BeginDrawing();
             ClearBackground(SKYBLUE);
             UpdatePlayer();
             UpdateEnemies();
+            UpdateWaves();
             for(int i = 0; i < firstFreeIndex; i++)
             {
                 Vector2 startPos = GetEntityCorner(entities[i]);
                 DrawRectangleV(startPos, entities[i]->size, entities[i]->defaultColor);
             }
+            if(nextWaveTimer > 0)
+            {
+                waveText = TextFormat("Next Wave starts in: %.1fs", nextWaveTimer);
+            }
+            else
+            {
+                waveText = TextFormat("Current Wave: %d", currentWave);
+            }
+            DrawText(waveText, 300, 20, 20, RED);
+
+            DrawText(TextFormat("Number of Dashes: %d", player->numberOfDashes), 300, 400, 20, RED);
 
             DrawFPS(0, 0);
         EndDrawing();
