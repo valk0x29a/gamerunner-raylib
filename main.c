@@ -33,6 +33,10 @@ typedef struct entity
     uint entityType;
     float speed;
     int dashDistance;
+    int maxNumberOfDashes;
+    int numberOfDashes;
+    float dashCooldown;
+    float currentDashCooldown;
     int health;
     int maxHealth;
     int attackDamage;
@@ -80,7 +84,7 @@ void removeEntity(int entityIndex)
     firstFreeIndex--;
 }
 
-entity* createNewEntity(Vector2 pos, Vector2 size, Vector2 pivot, Color defaultColor, uint entityType, float speed, int dashDistance, int maxHealth, int attackDamage, float attackCooldown)
+entity* createNewEntity(Vector2 pos, Vector2 size, Vector2 pivot, Color defaultColor, uint entityType, float speed, int dashDistance, int maxNumberOfDashes, float dashCooldown, int maxHealth, int attackDamage, float attackCooldown)
 {
     entity* newEntity = malloc(sizeof(entity));
     newEntity->position = pos;
@@ -90,6 +94,10 @@ entity* createNewEntity(Vector2 pos, Vector2 size, Vector2 pivot, Color defaultC
     newEntity->entityType = entityType;
     newEntity->speed = speed;
     newEntity->dashDistance = dashDistance;
+    newEntity->maxNumberOfDashes = maxNumberOfDashes;
+    newEntity->numberOfDashes = maxNumberOfDashes;
+    newEntity->dashCooldown = dashCooldown;
+    newEntity->currentDashCooldown = dashCooldown;
     newEntity->maxHealth = maxHealth;
     newEntity->health = maxHealth;
     newEntity->attackDamage = attackDamage;
@@ -108,6 +116,10 @@ entity* allocNewEntity(entity copiedEntity)
     newEntity->entityType = copiedEntity.entityType;
     newEntity->speed = copiedEntity.speed;
     newEntity->dashDistance = copiedEntity.dashDistance;
+    newEntity->maxNumberOfDashes = copiedEntity.maxNumberOfDashes;
+    newEntity->numberOfDashes = copiedEntity.numberOfDashes;
+    newEntity->dashCooldown = copiedEntity.dashCooldown;
+    newEntity->currentDashCooldown = copiedEntity.currentDashCooldown;
     newEntity->maxHealth = copiedEntity.maxHealth;
     newEntity->health = copiedEntity.maxHealth;
     newEntity->attackDamage = copiedEntity.attackDamage;
@@ -239,7 +251,9 @@ void UpdatePlayer()
             player->position.x += speed;
             dashXDirection = 1;
         }
-        if(IsKeyPressed(KEY_SPACE))
+        printf("%d\n", player->numberOfDashes);
+        printf("%f\n", player->currentDashCooldown);
+        if(IsKeyPressed(KEY_SPACE) && player->numberOfDashes > 0)
         {   
             if(dashXDirection == 0 && dashYDirection == 0)
             {
@@ -247,6 +261,17 @@ void UpdatePlayer()
             }
             player->position.x += dashXDirection * player->dashDistance;
             player->position.y += dashYDirection * player->dashDistance;
+            player->numberOfDashes--;
+        }
+
+        if(player->numberOfDashes < player->maxNumberOfDashes)
+        {
+            player->currentDashCooldown -= GetFrameTime();
+            if(player->currentDashCooldown <= 0)
+            {
+                player->numberOfDashes++;
+                player->currentDashCooldown = player->dashCooldown;
+            }
         }
 
         if(player->currentAttackCooldown > 0)
@@ -351,13 +376,13 @@ void UpdateEnemies()
 
 void SpawnEntites()
 {
-    entity* testEntity = createNewEntity(Vector2(400, 200), Vector2(20, 20), Vector2(0.5f, 0.5f), VIOLET, PLAYER, 2.5f, 128, 100, 10, 0.5f);
+    entity* testEntity = createNewEntity(Vector2(400, 200), Vector2(20, 20), Vector2(0.5f, 0.5f), VIOLET, PLAYER, 2.5f, 128, 2, 2.0f, 100, 10, 0.5f);
     addEntity(testEntity);
-    entity* anotherEntity = createNewEntity(Vector2(0,0), Vector2(100, 100), Vector2(0.5f, 0.5f), GOLD, DEFAULT, 0, 0, 0 ,0, 0);
+    entity* anotherEntity = createNewEntity(Vector2(0,0), Vector2(100, 100), Vector2(0.5f, 0.5f), GOLD, DEFAULT, 0, 0, 0, 0, 0 ,0, 0);
     addEntity(anotherEntity);
-    entity* enemy = createNewEntity(Vector2(100, 200), Vector2(64, 64), Vector2(0.5f, 0.5f), DARKPURPLE, ENEMY, 0.5f, 0, 40, 5, 1.0f);
+    entity* enemy = createNewEntity(Vector2(100, 200), Vector2(64, 64), Vector2(0.5f, 0.5f), DARKPURPLE, ENEMY, 0.5f, 0, 0, 0, 40, 5, 1.0f);
     addEntity(enemy);
-    entity* fastEnemy = createNewEntity(Vector2(200, 300), Vector2(16, 16), Vector2(0.5f, 0.5f), DARKPURPLE, ENEMY, 1.5f, 0, 20, 10, 1.0f);
+    entity* fastEnemy = createNewEntity(Vector2(200, 300), Vector2(16, 16), Vector2(0.5f, 0.5f), DARKPURPLE, ENEMY, 1.5f, 0, 0, 0, 20, 10, 1.0f);
     addEntity(fastEnemy);
 }
 
