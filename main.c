@@ -251,8 +251,8 @@ void UpdatePlayer()
             player->position.x += speed;
             dashXDirection = 1;
         }
-        printf("%d\n", player->numberOfDashes);
-        printf("%f\n", player->currentDashCooldown);
+        // printf("%d\n", player->numberOfDashes);
+        // printf("%f\n", player->currentDashCooldown);
         if(IsKeyPressed(KEY_SPACE) && player->numberOfDashes > 0)
         {   
             if(dashXDirection == 0 && dashYDirection == 0)
