@@ -1,5 +1,6 @@
 #include "raylib.h"
 #include "raymath.h"
+#include <complex.h>
 #include <stdlib.h>
 #include <float.h>
 #include <stdio.h>
@@ -12,6 +13,15 @@
 
 #define min(a, b) a > b ? b : a
 #define max(a, b) a > b ? a : b
+
+void ReloadGame();
+
+typedef struct RayCastHitResult
+{
+    bool colliding;
+    Vector2 hitPosition;
+    int entityIndex;
+} RayCastHitResult;
 
 typedef struct entity
 {
@@ -26,6 +36,8 @@ typedef struct entity
     int health;
     int maxHealth;
     int attackDamage;
+    float attackCooldown;
+    float currentAttackCooldown;
 } entity;
 
 int firstFreeIndex = 0;
@@ -64,10 +76,11 @@ void removeEntity(int entityIndex)
         entities[entityIndex] = endEntity;
         entities[lastFilledIndex] = deletedEntity;
     }
+    free(entities[lastFilledIndex]);
     firstFreeIndex--;
 }
 
-entity* createNewEntity(Vector2 pos, Vector2 size, Vector2 pivot, Color defaultColor, uint entityType, float speed, int dashDistance, int maxHealth, int attackDamage)
+entity* createNewEntity(Vector2 pos, Vector2 size, Vector2 pivot, Color defaultColor, uint entityType, float speed, int dashDistance, int maxHealth, int attackDamage, float attackCooldown)
 {
     entity* newEntity = malloc(sizeof(entity));
     newEntity->position = pos;
@@ -80,6 +93,9 @@ entity* createNewEntity(Vector2 pos, Vector2 size, Vector2 pivot, Color defaultC
     newEntity->maxHealth = maxHealth;
     newEntity->health = maxHealth;
     newEntity->attackDamage = attackDamage;
+    newEntity->attackCooldown = attackCooldown;
+    newEntity->currentAttackCooldown = attackCooldown;
+    return newEntity;
 }
 
 entity* allocNewEntity(entity copiedEntity)
@@ -95,6 +111,9 @@ entity* allocNewEntity(entity copiedEntity)
     newEntity->maxHealth = copiedEntity.maxHealth;
     newEntity->health = copiedEntity.maxHealth;
     newEntity->attackDamage = copiedEntity.attackDamage;
+    newEntity->attackCooldown = copiedEntity.attackCooldown;
+    newEntity->currentAttackCooldown = copiedEntity.attackCooldown;
+    return newEntity;
 }
 
 bool areEntitiesColliding(entity* entityA, entity* entityB)
@@ -146,11 +165,11 @@ bool isRayCollidingWithEntity(Vector2 r1, Vector2 r2, entity* e)
     return a || b || c || d;
 }
 
-Vector2 RayCastHit(Vector2 r1, Vector2 r2, uint entityTypeMask, bool *colliding, int* closestEntityIndex)
+RayCastHitResult RayCastHit(Vector2 r1, Vector2 r2, uint entityTypeMask)
 {
     Vector2 closestHit = Vector2Zero();
     float closestDistance = FLT_MAX;
-    *closestEntityIndex = -1;
+    int closestEntityIndex = -1;
     for(int i = 0; i < firstFreeIndex; i++)
     {
         if((entities[i]->entityType & entityTypeMask) == 0) { continue; }
@@ -179,13 +198,16 @@ Vector2 RayCastHit(Vector2 r1, Vector2 r2, uint entityTypeMask, bool *colliding,
             {
                 closestHit = results[j];
                 closestDistance = distance;
-                *closestEntityIndex = i;
+                closestEntityIndex = i;
             }
         }
     }
 
-    *colliding = closestDistance != FLT_MAX;
-    return closestHit;
+    RayCastHitResult result;
+    result.colliding = closestDistance != FLT_MAX;
+    result.hitPosition = closestHit;
+    result.entityIndex = closestEntityIndex;
+    return result;
 }
 
 void UpdatePlayer()
@@ -227,39 +249,26 @@ void UpdatePlayer()
             player->position.y += dashYDirection * player->dashDistance;
         }
 
-        if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+        if(player->currentAttackCooldown > 0)
+        {
+            player->currentAttackCooldown -= GetFrameTime();
+        }
+        // printf("%f\n", player->currentAttackCooldown);
+        if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && player->currentAttackCooldown <= 0)
         {
             Vector2 mousePosition = GetMousePosition();
-            bool colliding = false;
-            int entityIndex = -1;
-            Vector2 result = RayCastHit(player->position, mousePosition, ENEMY, &colliding, &entityIndex);
-            if(colliding)
+            RayCastHitResult result = RayCastHit(player->position, mousePosition, ENEMY);
+            if(result.colliding)
             {
+                int entityIndex = result.entityIndex;
                 entities[entityIndex]->health -= player->attackDamage;
                 if(entities[entityIndex]->health <= 0)
                 {
                     removeEntity(entityIndex);
                 }
             }
+            player->currentAttackCooldown = player->attackCooldown;
         }
-
-        for(int j = 0; j < firstFreeIndex; j++)
-        {
-            if(j == i) { continue; }
-            if(entities[j]->entityType != ENEMY) { continue; }
-            if(areEntitiesColliding(player, entities[j]))
-            { 
-                //printf("Player is inside Enemy!!! ");
-                entities[j]->defaultColor = RED;
-                player->health -= entities[j]->attackDamage;
-                //printf("Health: %d ", player->health);
-            }
-            else
-            {
-                entities[j]->defaultColor = DARKPURPLE;
-            }
-        }
-
         //printf("x: %f y: %f \n", player->position.x, player->position.y);
     }
 }
@@ -302,12 +311,60 @@ void UpdateEnemies()
                 entities[i]->position.y -= min(speed, fabsf(enemyPos.y - playerPos.y));
             }
         }
+
         if(isEntityColliding(i))
         {
             entities[i]->position = entities[i]->previousPosition;
         }
         entities[i]->previousPosition = entities[i]->position;
+
+        entity* player = entities[minIndex];
+        if(areEntitiesColliding(player, entities[i]))
+        {
+            if(entities[i]->currentAttackCooldown > 0)
+            {
+                entities[i]->currentAttackCooldown -= GetFrameTime();
+                entities[i]->defaultColor = DARKPURPLE;
+            }
+            else
+            {
+
+                //printf("Player is inside Enemy!!! ");
+                entities[i]->defaultColor = RED;
+                player->health -= entities[i]->attackDamage;
+                //printf("Health: %d ", player->health);
+                if(player->health <= 0)
+                {
+                    ReloadGame();
+                }
+                entities[i]->currentAttackCooldown = entities[i]->attackCooldown;
+            }
+        }
+        else
+        {
+            entities[i]->defaultColor = DARKPURPLE;
+            entities[i]->currentAttackCooldown = entities[i]->attackCooldown;
+        }
+        // printf("%d:  %f\n", i, entities[i]->currentAttackCooldown);
     }
+}
+
+void SpawnEntites()
+{
+    entity* testEntity = createNewEntity(Vector2(400, 200), Vector2(20, 20), Vector2(0.5f, 0.5f), VIOLET, PLAYER, 2.5f, 128, 100, 10, 0.5f);
+    addEntity(testEntity);
+    entity* anotherEntity = createNewEntity(Vector2(0,0), Vector2(100, 100), Vector2(0.5f, 0.5f), GOLD, DEFAULT, 0, 0, 0 ,0, 0);
+    addEntity(anotherEntity);
+    entity* enemy = createNewEntity(Vector2(100, 200), Vector2(64, 64), Vector2(0.5f, 0.5f), DARKPURPLE, ENEMY, 0.5f, 0, 40, 5, 1.0f);
+    addEntity(enemy);
+    entity* fastEnemy = createNewEntity(Vector2(200, 300), Vector2(16, 16), Vector2(0.5f, 0.5f), DARKPURPLE, ENEMY, 1.5f, 0, 20, 10, 1.0f);
+    addEntity(fastEnemy);
+}
+
+void ReloadGame()
+{
+    firstFreeIndex = 0;
+    SpawnEntites();
 }
 
 int main()
@@ -316,15 +373,7 @@ int main()
     SetConfigFlags(FLAG_VSYNC_HINT);
     InitWindow(800, 450, "GameRunner - Raylib - C");
 
-    int count = 0;
-    entity* testEntity = createNewEntity(Vector2(400, 200), Vector2(20, 20), Vector2(0.5f, 0.5f), VIOLET, PLAYER, 2.5f, 128, 100, 10);
-    addEntity(testEntity);
-    entity* anotherEntity = createNewEntity(Vector2(0,0), Vector2(100, 100), Vector2(0.5f, 0.5f), GOLD, DEFAULT, 0, 0, 0 ,0);
-    addEntity(anotherEntity);
-    entity* enemy = createNewEntity(Vector2(100, 200), Vector2(64, 64), Vector2(0.5f, 0.5f), DARKPURPLE, ENEMY, 0.5f, 0, 40, 5);
-    addEntity(enemy);
-    entity* fastEnemy = createNewEntity(Vector2(200, 300), Vector2(16, 16), Vector2(0.5f, 0.5f), DARKPURPLE, ENEMY, 1.5f, 0, 20, 10);
-    addEntity(fastEnemy);
+    SpawnEntites();
     while (!WindowShouldClose())
     {
         BeginDrawing();
