@@ -28,6 +28,13 @@ typedef struct RayCastHitResult
     int entityIndex;
 } RayCastHitResult;
 
+typedef struct RayCastAllHitsResult
+{
+    int indexesCount;
+    Vector2* hitPositions;
+    int* entityIndexes;
+} RayCastAllHitsResult;
+
 typedef struct entity
 {
     Vector2 position;
@@ -274,6 +281,55 @@ RayCastHitResult RayCastHit(Vector2 r1, Vector2 r2, uint entityTypeMask)
     return result;
 }
 
+RayCastAllHitsResult RayCastAllHits(Vector2 r1, Vector2 r2, uint entityTypeMask, float sqrMaxDistance)
+{
+    int capacity = 2;
+    Vector2* hitPositions = malloc(sizeof(Vector2) * capacity);
+    int* entityIndexes = malloc(sizeof(int) * capacity);
+    int indexesCount = 0;
+    for(int i = 0; i < firstFreeIndex; i++)
+    {
+        if((entities[i]->entityType & entityTypeMask) == 0) { continue; }
+
+        // A----B
+        // |    |
+        // |    |
+        // D----C
+        Vector2 entityCornerA = GetEntityCorner(entities[i]);
+        Vector2 entityCornerB = { entityCornerA.x + entities[i]->size.x, entityCornerA.y };
+        Vector2 entityCornerC = { entityCornerA.x + entities[i]->size.x, entityCornerA.y + entities[i]->size.y };
+        Vector2 entityCornerD = { entityCornerA.x, entityCornerA.y + entities[i]->size.y };
+
+        Vector2 results[4];
+        bool colliding[4];
+        results[0] = isRayCollidingWithSegment(entityCornerA, entityCornerB, r1, r2, &colliding[0]);
+        results[1] = isRayCollidingWithSegment(entityCornerB, entityCornerC, r1, r2, &colliding[1]);
+        results[2] = isRayCollidingWithSegment(entityCornerC, entityCornerD, r1, r2, &colliding[2]);
+        results[3] = isRayCollidingWithSegment(entityCornerD, entityCornerA, r1, r2, &colliding[3]);
+
+        for(int j = 0; j < 4; j++)
+        {
+            if(!colliding[j]) { continue; }
+            if(getSqrDistance(r1, results[j]) > sqrMaxDistance) { continue; }
+            hitPositions[indexesCount] = results[j];
+            entityIndexes[indexesCount] = i;
+            indexesCount++;
+            if(indexesCount == capacity)
+            {
+                capacity *= 2;
+                hitPositions = realloc(hitPositions, sizeof(Vector2) * capacity);
+                entityIndexes = realloc(entityIndexes, sizeof(int) * capacity);
+            }
+        }
+    }
+
+    RayCastAllHitsResult result;
+    result.indexesCount = indexesCount;
+    result.hitPositions = hitPositions;
+    result.entityIndexes = entityIndexes;
+    return result;
+}
+
 void UpdatePlayer()
 {
     for(int i = 0; i < firstFreeIndex; i++)
@@ -314,6 +370,21 @@ void UpdatePlayer()
             player->position.x += dashXDirection * player->dashDistance;
             player->position.y += dashYDirection * player->dashDistance;
             player->numberOfDashes--;
+
+            RayCastAllHitsResult result = RayCastAllHits(player->position, player->previousPosition, ENEMY, getSqrDistance(player->position, player->previousPosition));
+            printf("%d\n", result.indexesCount);
+            for(int j = 0; j < result.indexesCount; j++)
+            {
+                int entityIndex = result.entityIndexes[j];
+                entities[entityIndex]->stamina -= 25.0f; //hits two times the same entity
+                if(entities[entityIndex]->stamina < -1.0f)
+                {
+                    entities[entityIndex]->stamina = -1.0f;
+                }
+                // printf("%f\n", entities[result.entityIndexes[j]]->stamina);
+            }
+            free(result.entityIndexes);
+            free(result.hitPositions);
         }
 
         if(player->numberOfDashes < player->maxNumberOfDashes)
@@ -352,6 +423,7 @@ void UpdatePlayer()
         {
             player->currentDamagedCooldown -= GetFrameTime();
         }
+        player->previousPosition = player->position;
         //printf("x: %f y: %f \n", player->position.x, player->position.y);
     }
 }
@@ -411,7 +483,7 @@ void UpdateEnemies()
         {
             entities[i]->position = entities[i]->previousPosition;
         }
-        // printf("%f\n", entities[i]->stamina);
+        printf("%f\n", entities[i]->stamina);
         entities[i]->stamina -= getSqrDistance(entities[i]->position, entities[i]->previousPosition) * 0.1f;
         if(entities[i]->stamina < 0)
         {
