@@ -9,6 +9,9 @@
 #define PLAYER 1 << 1
 #define UPGRADER 1 << 2
 #define ENEMY 1 << 3
+
+#define NEXT_WAVE_TIMER 5.0f
+
 #define Vector2(x,y) (Vector2){x, y}
 
 #define min(a, b) a > b ? b : a
@@ -49,6 +52,10 @@ typedef struct entity
     float currentDamagedCooldown;
     Color damagedColor;
     float fovRange;
+    float maxStamina;
+    float stamina;
+    bool isRegenerating;
+    float staminaRegenerationSpeed;
 } entity;
 
 int firstFreeIndex = 0;
@@ -59,7 +66,7 @@ int enemiesCount = 0;
 
 int currentWave = 0;
 
-float nextWaveTimer = 5.0f;
+float nextWaveTimer = NEXT_WAVE_TIMER;
 
 entity* player;
 
@@ -109,12 +116,13 @@ void removeEntity(int entityIndex)
 
 }
 
-entity* createNewEntity(Vector2 pos, Vector2 size, Vector2 pivot, Color defaultColor, uint entityType, float speed, int dashDistance, int maxNumberOfDashes, float dashCooldown, int maxHealth, int attackDamage, float attackCooldown, float attackRange, float damagedCooldown, Color damagedColor, float fovRange)
+entity* createNewEntity(Vector2 pos, Vector2 size, Vector2 pivot, Color defaultColor, uint entityType, float speed, int dashDistance, int maxNumberOfDashes, float dashCooldown, int maxHealth, int attackDamage, float attackCooldown, float attackRange, float damagedCooldown, Color damagedColor, float fovRange, float maxStamina, float staminaRegenerationSpeed)
 {
     entity* newEntity = malloc(sizeof(entity));
     newEntity->position = pos;
     newEntity->size = size;
     newEntity->pivot = pivot;
+    newEntity->previousPosition = pos;
     newEntity->defaultColor = defaultColor;
     newEntity->entityType = entityType;
     newEntity->speed = speed;
@@ -133,6 +141,10 @@ entity* createNewEntity(Vector2 pos, Vector2 size, Vector2 pivot, Color defaultC
     newEntity->currentDamagedCooldown = 0;
     newEntity->damagedColor = damagedColor;
     newEntity->fovRange = fovRange;
+    newEntity->maxStamina = maxStamina;
+    newEntity->stamina = maxStamina;
+    newEntity->isRegenerating = false;
+    newEntity->staminaRegenerationSpeed = staminaRegenerationSpeed;
     return newEntity;
 }
 
@@ -142,14 +154,15 @@ entity* allocNewEntity(entity copiedEntity)
     newEntity->position = copiedEntity.position;
     newEntity->size = copiedEntity.size;
     newEntity->pivot = copiedEntity.pivot;
+    newEntity->previousPosition = copiedEntity.position;
     newEntity->defaultColor = copiedEntity.defaultColor;
     newEntity->entityType = copiedEntity.entityType;
     newEntity->speed = copiedEntity.speed;
     newEntity->dashDistance = copiedEntity.dashDistance;
     newEntity->maxNumberOfDashes = copiedEntity.maxNumberOfDashes;
-    newEntity->numberOfDashes = copiedEntity.numberOfDashes;
+    newEntity->numberOfDashes = copiedEntity.maxNumberOfDashes;
     newEntity->dashCooldown = copiedEntity.dashCooldown;
-    newEntity->currentDashCooldown = copiedEntity.currentDashCooldown;
+    newEntity->currentDashCooldown = copiedEntity.dashCooldown;
     newEntity->maxHealth = copiedEntity.maxHealth;
     newEntity->health = copiedEntity.maxHealth;
     newEntity->attackDamage = copiedEntity.attackDamage;
@@ -160,6 +173,10 @@ entity* allocNewEntity(entity copiedEntity)
     newEntity->currentDamagedCooldown = 0;
     newEntity->damagedColor = copiedEntity.damagedColor;
     newEntity->fovRange = copiedEntity.fovRange;
+    newEntity->maxStamina = copiedEntity.maxStamina;
+    newEntity->stamina = copiedEntity.maxStamina;
+    newEntity->isRegenerating = false;
+    newEntity->staminaRegenerationSpeed = copiedEntity.staminaRegenerationSpeed;
     return newEntity;
 }
 
@@ -356,32 +373,49 @@ void UpdateEnemies()
                 minIndex = j;
             }
         }
-        if(minIndex >= 0)
+        if(!entities[i]->isRegenerating)
         {
-            float speed = entities[i]->speed;
-            Vector2 enemyPos = entities[i]->position;
-            Vector2 playerPos = entities[minIndex]->position;
-            if(enemyPos.x < playerPos.x)
+            if(minIndex >= 0)
             {
-                entities[i]->position.x += min(speed, fabsf(enemyPos.x - playerPos.x));
+                float speed = entities[i]->speed;
+                Vector2 enemyPos = entities[i]->position;
+                Vector2 playerPos = entities[minIndex]->position;
+                if(enemyPos.x < playerPos.x)
+                {
+                    entities[i]->position.x += min(speed, fabsf(enemyPos.x - playerPos.x));
+                }
+                if(enemyPos.x > playerPos.x)
+                {
+                    entities[i]->position.x -= min(speed, fabsf(enemyPos.x - playerPos.x));
+                }
+                if(enemyPos.y < playerPos.y)
+                {
+                    entities[i]->position.y += min(speed, fabsf(enemyPos.y - playerPos.y));
+                }
+                if(enemyPos.y > playerPos.y)
+                {
+                    entities[i]->position.y -= min(speed, fabsf(enemyPos.y - playerPos.y));
+                }
             }
-            if(enemyPos.x > playerPos.x)
+        }
+        else
+        {
+            entities[i]->stamina += GetFrameTime() * entities[i]->staminaRegenerationSpeed;
+            if(entities[i]->stamina > entities[i]->maxStamina)
             {
-                entities[i]->position.x -= min(speed, fabsf(enemyPos.x - playerPos.x));
-            }
-            if(enemyPos.y < playerPos.y)
-            {
-                entities[i]->position.y += min(speed, fabsf(enemyPos.y - playerPos.y));
-            }
-            if(enemyPos.y > playerPos.y)
-            {
-                entities[i]->position.y -= min(speed, fabsf(enemyPos.y - playerPos.y));
+                entities[i]->isRegenerating = false;
             }
         }
 
         if(isEntityColliding(i))
         {
             entities[i]->position = entities[i]->previousPosition;
+        }
+        // printf("%f\n", entities[i]->stamina);
+        entities[i]->stamina -= getSqrDistance(entities[i]->position, entities[i]->previousPosition) * 0.1f;
+        if(entities[i]->stamina < 0)
+        {
+            entities[i]->isRegenerating = true;
         }
         entities[i]->previousPosition = entities[i]->position;
 
@@ -434,24 +468,24 @@ void UpdateWaves()
 
 void EndWave()
 {
-    nextWaveTimer = 5.0f;
+    nextWaveTimer = NEXT_WAVE_TIMER;
 }
 
 void SpawnEntites()
 {
-    player = createNewEntity(Vector2(400, 200), Vector2(20, 20), Vector2(0.5f, 0.5f), VIOLET, PLAYER, 2.5f, 128, 2, 2.0f, 100, 10, 0.5f, 10.0f, 0.125f, RED, 0);
+    player = createNewEntity(Vector2(400, 200), Vector2(20, 20), Vector2(0.5f, 0.5f), VIOLET, PLAYER, 2.5f, 128, 2, 2.0f, 100, 10, 0.5f, 10.0f, 0.125f, RED, 0, 0, 0);
     addEntity(player);
-    entity* anotherEntity = createNewEntity(Vector2(0,0), Vector2(100, 100), Vector2(0.5f, 0.5f), GOLD, DEFAULT, 0, 0, 0, 0, 0 ,0, 0, 0, 0, RED, 0);
+    entity* anotherEntity = createNewEntity(Vector2(0,0), Vector2(100, 100), Vector2(0.5f, 0.5f), GOLD, DEFAULT, 0, 0, 0, 0, 0 ,0, 0, 0, 0, RED, 0, 0, 0);
     addEntity(anotherEntity);
 }
 
 void SpawnEnemies()
 {
-    entity* enemy = createNewEntity(Vector2(100, 200), Vector2(64, 64), Vector2(0.5f, 0.5f), DARKPURPLE, ENEMY, 0.5f, 0, 0, 0, 40, 20, 0.5f, 50.0f, 0.125f, RED, 350.0f);
+    entity* enemy = createNewEntity(Vector2(100, 200), Vector2(64, 64), Vector2(0.5f, 0.5f), DARKPURPLE, ENEMY, 0.5f, 0, 0, 0, 40, 20, 0.5f, 50.0f, 0.125f, RED, 350.0f, 100.0f, 20.0f);
     addEntity(enemy);
     for(int i = 0; i < 3; i++)
     {
-        entity* fastEnemy = createNewEntity(Vector2(200, 300 + i * 30), Vector2(16, 16), Vector2(0.5f, 0.5f), DARKPURPLE, ENEMY, 1.5f, 0, 0, 0, 20, 10, 0.25f, 25.0f, 0.125f, RED, 450.0f);
+        entity* fastEnemy = createNewEntity(Vector2(200, 300 + i * 30), Vector2(16, 16), Vector2(0.5f, 0.5f), DARKPURPLE, ENEMY, 2.0f, 0, 0, 0, 20, 10, 0.25f, 25.0f, 0.125f, RED, 450.0f, 500.0f, 100.0f);
         addEntity(fastEnemy);
     }
 }
@@ -459,8 +493,9 @@ void SpawnEnemies()
 void ReloadGame()
 {
     firstFreeIndex = 0;
-    nextWaveTimer = 5.0f;
+    nextWaveTimer = NEXT_WAVE_TIMER;
     currentWave = 0;
+    enemiesCount = 0;
     SpawnEntites();
 }
 
@@ -488,7 +523,8 @@ int main()
                 }
                 else
                 {
-                    DrawRectangleV(startPos, entities[i]->size, entities[i]->defaultColor);
+                    Color outputColor = entities[i]->isRegenerating ? GRAY : entities[i]->defaultColor;
+                    DrawRectangleV(startPos, entities[i]->size, outputColor);
                 }
             }
             if(nextWaveTimer > 0)
