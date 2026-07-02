@@ -405,6 +405,9 @@ void UpdatePlayer()
         if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && player->currentAttackCooldown <= 0)
         {
             Vector2 mousePosition = GetMousePosition();
+            Vector2 offset = Vector2Subtract(mousePosition, player->position);
+            offset = Vector2Multiply(offset, Vector2(3,3));
+            DrawLineV(player->position, Vector2Add(player->position, offset), RED);
             RayCastHitResult result = RayCastHit(player->position, mousePosition, ENEMY);
             if(result.colliding)
             {
