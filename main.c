@@ -48,6 +48,7 @@ typedef struct entity
     float damagedCooldown;
     float currentDamagedCooldown;
     Color damagedColor;
+    float fovRange;
 } entity;
 
 int firstFreeIndex = 0;
@@ -108,7 +109,7 @@ void removeEntity(int entityIndex)
 
 }
 
-entity* createNewEntity(Vector2 pos, Vector2 size, Vector2 pivot, Color defaultColor, uint entityType, float speed, int dashDistance, int maxNumberOfDashes, float dashCooldown, int maxHealth, int attackDamage, float attackCooldown, float attackRange, float damagedCooldown, Color damagedColor)
+entity* createNewEntity(Vector2 pos, Vector2 size, Vector2 pivot, Color defaultColor, uint entityType, float speed, int dashDistance, int maxNumberOfDashes, float dashCooldown, int maxHealth, int attackDamage, float attackCooldown, float attackRange, float damagedCooldown, Color damagedColor, float fovRange)
 {
     entity* newEntity = malloc(sizeof(entity));
     newEntity->position = pos;
@@ -131,6 +132,7 @@ entity* createNewEntity(Vector2 pos, Vector2 size, Vector2 pivot, Color defaultC
     newEntity->damagedCooldown = damagedCooldown;
     newEntity->currentDamagedCooldown = 0;
     newEntity->damagedColor = damagedColor;
+    newEntity->fovRange = fovRange;
     return newEntity;
 }
 
@@ -157,6 +159,7 @@ entity* allocNewEntity(entity copiedEntity)
     newEntity->damagedCooldown = copiedEntity.damagedCooldown;
     newEntity->currentDamagedCooldown = 0;
     newEntity->damagedColor = copiedEntity.damagedColor;
+    newEntity->fovRange = copiedEntity.fovRange;
     return newEntity;
 }
 
@@ -346,6 +349,7 @@ void UpdateEnemies()
         {
             if(entities[j]->entityType != PLAYER) { continue; }
             float dist = getSqrDistance(entities[i]->position, entities[j]->position);
+            if(dist > entities[i]->fovRange*entities[i]->fovRange) { continue; }
             if(dist < minDist)
             {
                 minDist = dist;
@@ -381,6 +385,13 @@ void UpdateEnemies()
         }
         entities[i]->previousPosition = entities[i]->position;
 
+
+        if(entities[i]->currentDamagedCooldown > 0)
+        {
+            entities[i]->currentDamagedCooldown -= GetFrameTime();
+        }
+
+        if(minIndex == -1) { continue; }
         entity* player = entities[minIndex];
         if(getSqrDistance(player->position, entities[i]->position) <= entities[i]->attackRange*entities[i]->attackRange)
         {
@@ -403,11 +414,6 @@ void UpdateEnemies()
         else
         {
             entities[i]->currentAttackCooldown = entities[i]->attackCooldown;
-        }
-
-        if(entities[i]->currentDamagedCooldown > 0)
-        {
-            entities[i]->currentDamagedCooldown -= GetFrameTime();
         }
         // printf("%d:  %f\n", i, entities[i]->currentAttackCooldown);
     }
@@ -433,19 +439,19 @@ void EndWave()
 
 void SpawnEntites()
 {
-    player = createNewEntity(Vector2(400, 200), Vector2(20, 20), Vector2(0.5f, 0.5f), VIOLET, PLAYER, 2.5f, 128, 2, 2.0f, 100, 10, 0.5f, 10.0f, 0.125f, RED);
+    player = createNewEntity(Vector2(400, 200), Vector2(20, 20), Vector2(0.5f, 0.5f), VIOLET, PLAYER, 2.5f, 128, 2, 2.0f, 100, 10, 0.5f, 10.0f, 0.125f, RED, 0);
     addEntity(player);
-    entity* anotherEntity = createNewEntity(Vector2(0,0), Vector2(100, 100), Vector2(0.5f, 0.5f), GOLD, DEFAULT, 0, 0, 0, 0, 0 ,0, 0, 0, 0, RED);
+    entity* anotherEntity = createNewEntity(Vector2(0,0), Vector2(100, 100), Vector2(0.5f, 0.5f), GOLD, DEFAULT, 0, 0, 0, 0, 0 ,0, 0, 0, 0, RED, 0);
     addEntity(anotherEntity);
 }
 
 void SpawnEnemies()
 {
-    entity* enemy = createNewEntity(Vector2(100, 200), Vector2(64, 64), Vector2(0.5f, 0.5f), DARKPURPLE, ENEMY, 0.5f, 0, 0, 0, 40, 20, 0.5f, 50.0f, 0.125f, RED);
+    entity* enemy = createNewEntity(Vector2(100, 200), Vector2(64, 64), Vector2(0.5f, 0.5f), DARKPURPLE, ENEMY, 0.5f, 0, 0, 0, 40, 20, 0.5f, 50.0f, 0.125f, RED, 350.0f);
     addEntity(enemy);
     for(int i = 0; i < 3; i++)
     {
-        entity* fastEnemy = createNewEntity(Vector2(200, 300 + i * 30), Vector2(16, 16), Vector2(0.5f, 0.5f), DARKPURPLE, ENEMY, 1.5f, 0, 0, 0, 20, 10, 0.25f, 25.0f, 0.125f, RED);
+        entity* fastEnemy = createNewEntity(Vector2(200, 300 + i * 30), Vector2(16, 16), Vector2(0.5f, 0.5f), DARKPURPLE, ENEMY, 1.5f, 0, 0, 0, 20, 10, 0.25f, 25.0f, 0.125f, RED, 450.0f);
         addEntity(fastEnemy);
     }
 }
