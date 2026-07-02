@@ -682,7 +682,7 @@ void SpawnEnemies()
     enemy->child = health_hitbox;
     for(int i = 0; i < 3; i++)
     {
-        entity* fastEnemy = createNewEntity(Vector2(200, 300 + i * 30), Vector2(16, 16), Vector2(0.5f, 0.5f), DARKPURPLE, ENEMY, 2.0f, 0, 0, 0, 20, 10, 0.25f, 25.0f, 0.125f, RED, 650.0f, 500.0f, 100.0f, NULL, 0.5f);
+        entity* fastEnemy = createNewEntity(Vector2(200, 300 + i * 30), Vector2(16, 16), Vector2(0.5f, 0.5f), DARKPURPLE, ENEMY, 3.0f, 0, 0, 0, 20, 10, 0.25f, 25.0f, 0.125f, RED, 650.0f, 500.0f, 100.0f, NULL, 0.5f);
         addEntity(fastEnemy);
         entity* health_hitbox = createNewEntity(Vector2(-10.0f, 0.0f), Vector2(4,4), Vector2(0.5f, 0.5f), BLUE, HEALTH_HITBOX, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, RED, 0, 0, 0, fastEnemy, 0);
         addEntity(health_hitbox);
