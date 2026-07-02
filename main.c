@@ -68,6 +68,9 @@ typedef struct entity
     float staminaRegenerationSpeed;
     struct entity* parent;
     struct entity* child;
+    float flipDelay;
+    float flipTimer;
+    bool isFlipped;
 } entity;
 
 int firstFreeIndex = 0;
@@ -138,7 +141,7 @@ void removeEntity(int entityIndex)
     firstFreeIndex--;
 }
 
-entity* createNewEntity(Vector2 pos, Vector2 size, Vector2 pivot, Color defaultColor, uint entityType, float speed, int dashDistance, int maxNumberOfDashes, float dashCooldown, int maxHealth, int attackDamage, float attackCooldown, float attackRange, float damagedCooldown, Color damagedColor, float fovRange, float maxStamina, float staminaRegenerationSpeed, entity* parent)
+entity* createNewEntity(Vector2 pos, Vector2 size, Vector2 pivot, Color defaultColor, uint entityType, float speed, int dashDistance, int maxNumberOfDashes, float dashCooldown, int maxHealth, int attackDamage, float attackCooldown, float attackRange, float damagedCooldown, Color damagedColor, float fovRange, float maxStamina, float staminaRegenerationSpeed, entity* parent, float flipDelay)
 {
     entity* newEntity = malloc(sizeof(entity));
     newEntity->position = pos;
@@ -169,6 +172,9 @@ entity* createNewEntity(Vector2 pos, Vector2 size, Vector2 pivot, Color defaultC
     newEntity->staminaRegenerationSpeed = staminaRegenerationSpeed;
     newEntity->parent = parent;
     newEntity->child = NULL;
+    newEntity->flipDelay = flipDelay;
+    newEntity->flipTimer = flipDelay;
+    newEntity->isFlipped = false;
     return newEntity;
 }
 
@@ -203,6 +209,9 @@ entity* allocNewEntity(entity copiedEntity)
     newEntity->staminaRegenerationSpeed = copiedEntity.staminaRegenerationSpeed;
     newEntity->parent = copiedEntity.parent;
     newEntity->child = NULL;
+    newEntity->flipDelay = copiedEntity.flipDelay;
+    newEntity->flipTimer = copiedEntity.flipDelay;
+    newEntity->isFlipped = false;
     return newEntity;
 }
 
@@ -492,11 +501,39 @@ void UpdateEnemies()
                 Vector2 playerPos = entities[minIndex]->position;
                 if(enemyPos.x < playerPos.x)
                 {
-                    entities[i]->position.x += min(speed, fabsf(enemyPos.x - playerPos.x));
+                    if(entities[i]->isFlipped)
+                    {
+                        entities[i]->flipTimer -= GetFrameTime();
+                        if(entities[i]->flipTimer < 0)
+                        {
+                            entities[i]->flipTimer = entities[i]->flipDelay;
+                            entities[i]->isFlipped = !entities[i]->isFlipped;
+                            entities[i]->stamina -= 10.0f;
+                        }
+                    }
+                    else
+                    {
+                        entities[i]->position.x += min(speed, fabsf(enemyPos.x - playerPos.x));
+                        entities[i]->flipTimer = entities[i]->flipDelay;
+                    }
                 }
                 if(enemyPos.x > playerPos.x)
                 {
-                    entities[i]->position.x -= min(speed, fabsf(enemyPos.x - playerPos.x));
+                    if(!entities[i]->isFlipped)
+                    {
+                        entities[i]->flipTimer -= GetFrameTime();
+                        if(entities[i]->flipTimer < 0)
+                        {
+                            entities[i]->flipTimer = entities[i]->flipDelay;
+                            entities[i]->isFlipped = !entities[i]->isFlipped;
+                            entities[i]->stamina -= 10.0f;
+                        }
+                    }
+                    else
+                    {
+                        entities[i]->position.x -= min(speed, fabsf(enemyPos.x - playerPos.x));
+                        entities[i]->flipTimer = entities[i]->flipDelay;
+                    }
                 }
                 if(enemyPos.y < playerPos.y)
                 {
@@ -570,6 +607,10 @@ void UpdateHealthHitBoxes()
         if(entities[i]->entityType != HEALTH_HITBOX) { continue; }
         if(entities[i]->parent == NULL) { removeEntity(i); continue; }
         Vector2 offset = entities[i]->previousPosition;
+        if(entities[i]->parent->isFlipped)
+        {
+            offset.x = -offset.x;
+        }
         entities[i]->position = Vector2Add(entities[i]->parent->position, offset);
         if(entities[i]->currentDamagedCooldown > 0)
         {
@@ -584,7 +625,7 @@ void UpdateHealthPickups()
     {
         if(entities[i]->entityType != HEALTH_PICKUP) { continue; }
         float dist = getSqrDistance(entities[i]->position, player->position);
-        if(dist < 64.0f)
+        if(dist < 72.0f)
         {
             if(player->health < player->maxHealth)
             {
@@ -620,30 +661,30 @@ void EndWave()
 
 void SpawnHealthPickup(Vector2 position)
 {
-    entity* health_pickup = createNewEntity(position, Vector2(8,8), Vector2(0.5f, 0.5f), BLUE, HEALTH_PICKUP, 0, 0, 0, 0, 0, 0, 0, 0, 0, RED, 0, 0, 0, NULL);
+    entity* health_pickup = createNewEntity(position, Vector2(8,8), Vector2(0.5f, 0.5f), BLUE, HEALTH_PICKUP, 0, 0, 0, 0, 0, 0, 0, 0, 0, RED, 0, 0, 0, NULL, 0);
     addEntity(health_pickup);
 }
 
 void SpawnEntites()
 {
-    player = createNewEntity(Vector2(400, 200), Vector2(20, 20), Vector2(0.5f, 0.5f), VIOLET, PLAYER, 2.5f, 128, 2, 2.0f, 100, 10, 0.5f, 10.0f, 0.125f, RED, 0, 0, 0, NULL);
+    player = createNewEntity(Vector2(400, 200), Vector2(20, 20), Vector2(0.5f, 0.5f), VIOLET, PLAYER, 2.5f, 128, 2, 2.0f, 100, 10, 0.5f, 10.0f, 0.125f, RED, 0, 0, 0, NULL, 0);
     addEntity(player);
-    entity* anotherEntity = createNewEntity(Vector2(0,0), Vector2(100, 100), Vector2(0.5f, 0.5f), GOLD, DEFAULT, 0, 0, 0, 0, 0 ,0, 0, 0, 0, RED, 0, 0, 0, NULL);
+    entity* anotherEntity = createNewEntity(Vector2(0,0), Vector2(100, 100), Vector2(0.5f, 0.5f), GOLD, DEFAULT, 0, 0, 0, 0, 0 ,0, 0, 0, 0, RED, 0, 0, 0, NULL, 0);
     addEntity(anotherEntity);
 }
 
 void SpawnEnemies()
 {
-    entity* enemy = createNewEntity(Vector2(100, 200), Vector2(64, 64), Vector2(0.5f, 0.5f), DARKPURPLE, ENEMY, 0.5f, 0, 0, 0, 40, 20, 0.5f, 50.0f, 0.125f, RED, 350.0f, 100.0f, 20.0f, NULL);
+    entity* enemy = createNewEntity(Vector2(100, 200), Vector2(64, 64), Vector2(0.5f, 0.5f), DARKPURPLE, ENEMY, 0.5f, 0, 0, 0, 40, 20, 0.5f, 50.0f, 0.125f, RED, 350.0f, 100.0f, 20.0f, NULL, 2.0f);
     addEntity(enemy);
-    entity* health_hitbox = createNewEntity(Vector2(36.0f, 0.0f), Vector2(16,16), Vector2(0.5f, 0.5f), BLUE, HEALTH_HITBOX, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, RED, 0, 0, 0, enemy);
+    entity* health_hitbox = createNewEntity(Vector2(-36.0f, 0.0f), Vector2(16,16), Vector2(0.5f, 0.5f), BLUE, HEALTH_HITBOX, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, RED, 0, 0, 0, enemy, 0);
     addEntity(health_hitbox);
     enemy->child = health_hitbox;
     for(int i = 0; i < 3; i++)
     {
-        entity* fastEnemy = createNewEntity(Vector2(200, 300 + i * 30), Vector2(16, 16), Vector2(0.5f, 0.5f), DARKPURPLE, ENEMY, 2.0f, 0, 0, 0, 20, 10, 0.25f, 25.0f, 0.125f, RED, 450.0f, 500.0f, 100.0f, NULL);
+        entity* fastEnemy = createNewEntity(Vector2(200, 300 + i * 30), Vector2(16, 16), Vector2(0.5f, 0.5f), DARKPURPLE, ENEMY, 2.0f, 0, 0, 0, 20, 10, 0.25f, 25.0f, 0.125f, RED, 650.0f, 500.0f, 100.0f, NULL, 0.5f);
         addEntity(fastEnemy);
-        entity* health_hitbox = createNewEntity(Vector2(10.0f, 0.0f), Vector2(4,4), Vector2(0.5f, 0.5f), BLUE, HEALTH_HITBOX, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, RED, 0, 0, 0, fastEnemy);
+        entity* health_hitbox = createNewEntity(Vector2(-10.0f, 0.0f), Vector2(4,4), Vector2(0.5f, 0.5f), BLUE, HEALTH_HITBOX, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, RED, 0, 0, 0, fastEnemy, 0);
         addEntity(health_hitbox);
         fastEnemy->child = health_hitbox;
     }
