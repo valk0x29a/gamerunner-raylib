@@ -77,6 +77,7 @@ typedef struct entity
     bool isUI;
     void (*buttonCallback)();
     const char* buttonText;
+    int cashDropAmount;
 } entity;
 
 int firstFreeIndex = 0;
@@ -110,6 +111,8 @@ int enemiesCount = 0;
 int currentWave = 0;
 
 float nextWaveTimer = NEXT_WAVE_TIMER;
+
+int playerCash = 0;
 
 entity* player;
 
@@ -611,7 +614,7 @@ void UpdateEnemies()
             entities[i]->currentDamagedCooldown -= GetFrameTime();
         }
 
-        if(minIndex == -1) { continue; }
+        if(minIndex == -1 || entities[i]->isRegenerating) { continue; }
         entity* player = entities[minIndex];
         if(getSqrDistance(player->position, entities[i]->position) <= entities[i]->attackRange*entities[i]->attackRange)
         {
@@ -705,12 +708,16 @@ void UpdateUpgrader()
             entities[i]->isEnabled = true;
         }
         float dist = getSqrDistance(player->position, entities[i]->position);
-        if(dist < 16.0f*16.0f)
+        if(dist < 32.0f*32.0f)
         {
             if(IsKeyPressed(KEY_E))
             {
                 isUpgraderUIActive = !isUpgraderUIActive;
             }
+        }
+        else
+        {
+            isUpgraderUIActive = false;
         }
     }
 }
@@ -793,7 +800,7 @@ void DrawUpgraderUI()
         Vector2 buttonPos = entities[i]->position;
         Color outputColor = entities[i]->currentDamagedCooldown > 0 ? entities[i]->damagedColor : entities[i]->defaultColor;
         DrawRectangleV(buttonPos, entities[i]->size, outputColor);
-        DrawText(entities[i]->buttonText, buttonPos.x + 40, buttonPos.y + 22, 20, RED);
+        DrawText(entities[i]->buttonText, buttonPos.x + 12, buttonPos.y + 22, 20, RED);
         if(isMouseInside(entities[i]) && IsMouseButtonDown(MOUSE_BUTTON_LEFT))
         {
             (*entities[i]->buttonCallback)();
@@ -842,11 +849,11 @@ void SpawnUI()
 {
     upgraderUIBackground = createNewEntity(Vector2(0,0), Vector2(800, 450), Vector2(0,0), (Color){128, 128, 128, 128}, UI_IMAGE, 0, 0, 0, 0, 0, 0, 0, 0, 0, RED, 0, 0, 0, NULL, 0);
     addEntity(upgraderUIBackground);
-    handgunUpgradeButton = createNewEntity(Vector2(32, 64), Vector2(256,64), Vector2(0,0), WHITE, UI_BUTTON, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, GRAY, 0, 0, 0, NULL, 0);
+    handgunUpgradeButton = createNewEntity(Vector2(32, 64), Vector2(208,64), Vector2(0,0), WHITE, UI_BUTTON, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, GRAY, 0, 0, 0, NULL, 0);
     addEntity(handgunUpgradeButton);
-    dashUpgradeButton = createNewEntity(Vector2(320, 64), Vector2(256,64), Vector2(0,0), WHITE, UI_BUTTON, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, GRAY, 0, 0, 0, NULL, 0);
+    dashUpgradeButton = createNewEntity(Vector2(256, 64), Vector2(192,64), Vector2(0,0), WHITE, UI_BUTTON, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, GRAY, 0, 0, 0, NULL, 0);
     addEntity(dashUpgradeButton);
-    maxHealthUpgradeButton = createNewEntity(Vector2(608, 64), Vector2(256,64), Vector2(0,0), WHITE, UI_BUTTON, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, GRAY, 0, 0, 0, NULL, 0);
+    maxHealthUpgradeButton = createNewEntity(Vector2(480, 64), Vector2(224,64), Vector2(0,0), WHITE, UI_BUTTON, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, GRAY, 0, 0, 0, NULL, 0);
     addEntity(maxHealthUpgradeButton);
 
     upgraderUIBackground->isUI = true;
@@ -877,6 +884,7 @@ void SpawnEnemies()
     entity* health_hitbox = createNewEntity(Vector2(-36.0f, 0.0f), Vector2(16,16), Vector2(0.5f, 0.5f), BLUE, HEALTH_HITBOX, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, RED, 0, 0, 0, bigEnemy, 0);
     addEntity(health_hitbox);
     bigEnemy->child = health_hitbox;
+    bigEnemy->cashDropAmount = 50;
     for(int i = 0; i < 3; i++)
     {
         entity* fastEnemy = createNewEntity(Vector2(200, 300 + i * 30), Vector2(16, 16), Vector2(0.5f, 0.5f), DARKPURPLE, ENEMY, 3.0f, 0, 0, 0, 20, 10, 0.25f, 25.0f, 0.125f, RED, 650.0f, 500.0f, 100.0f, NULL, 0.5f);
@@ -884,6 +892,7 @@ void SpawnEnemies()
         entity* health_hitbox = createNewEntity(Vector2(-10.0f, 0.0f), Vector2(4,4), Vector2(0.5f, 0.5f), BLUE, HEALTH_HITBOX, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, RED, 0, 0, 0, fastEnemy, 0);
         addEntity(health_hitbox);
         fastEnemy->child = health_hitbox;
+        fastEnemy->cashDropAmount = 25;
     }
 }
 
