@@ -1,6 +1,5 @@
 #include "raylib.h"
 #include "raymath.h"
-#include <complex.h>
 #include <stdlib.h>
 #include <float.h>
 #include <stdio.h>
@@ -11,6 +10,8 @@
 #define ENEMY 1 << 3
 #define HEALTH_HITBOX 1 << 4
 #define HEALTH_PICKUP 1 << 5
+#define UI_BUTTON 1 << 6
+#define UI_IMAGE 1 << 7
 
 #define NEXT_WAVE_TIMER 5.0f
 
@@ -23,6 +24,7 @@ void ReloadGame();
 void EndWave();
 void SpawnEnemies();
 void SpawnHealthPickup(Vector2 position);
+void SetUpgrades();
 
 typedef struct RayCastHitResult
 {
@@ -71,11 +73,37 @@ typedef struct entity
     float flipDelay;
     float flipTimer;
     bool isFlipped;
+    bool isEnabled;
+    bool isUI;
+    void (*buttonCallback)();
+    const char* buttonText;
 } entity;
 
 int firstFreeIndex = 0;
 int capacity = 4;
 entity** entities;
+
+int currentDashUpgrade = 0;
+int dashUpgradesCount = 2;
+typedef struct dashUpgrade
+{
+    int numberOfDashes;
+    float dashCooldown;
+} dashUpgrade;
+dashUpgrade dashUpgrades[2];
+
+int currentMaxHealthUpgrade = 0;
+int maxHealthUpgradesCount = 2;
+int maxHealthUpgrades[2];
+
+int currentHandgunUpgrade = 0;
+int handgunUpgradesCount = 2;
+typedef struct handgunUpgrade
+{
+    int attackDamage;
+    float attackCooldown;
+} handgunUpgrade;
+handgunUpgrade handgunUpgrades[2];
 
 int enemiesCount = 0;
 
@@ -84,6 +112,13 @@ int currentWave = 0;
 float nextWaveTimer = NEXT_WAVE_TIMER;
 
 entity* player;
+
+entity* upgraderUIBackground;
+entity* handgunUpgradeButton;
+entity* dashUpgradeButton;
+entity* maxHealthUpgradeButton;
+
+int isUpgraderUIActive = false;
 
 Vector2 GetEntityCorner(entity* entity)
 {
@@ -175,6 +210,8 @@ entity* createNewEntity(Vector2 pos, Vector2 size, Vector2 pivot, Color defaultC
     newEntity->flipDelay = flipDelay;
     newEntity->flipTimer = flipDelay;
     newEntity->isFlipped = false;
+    newEntity->isEnabled = true;
+    newEntity->isUI = false;
     return newEntity;
 }
 
@@ -212,6 +249,8 @@ entity* allocNewEntity(entity copiedEntity)
     newEntity->flipDelay = copiedEntity.flipDelay;
     newEntity->flipTimer = copiedEntity.flipDelay;
     newEntity->isFlipped = false;
+    newEntity->isEnabled = true;
+    newEntity->isUI = false;
     return newEntity;
 }
 
@@ -431,7 +470,7 @@ void UpdatePlayer()
             player->currentAttackCooldown -= GetFrameTime();
         }
         // printf("%f\n", player->currentAttackCooldown);
-        if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && player->currentAttackCooldown <= 0)
+        if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && player->currentAttackCooldown <= 0 && !isUpgraderUIActive)
         {
             Vector2 mousePosition = GetMousePosition();
             Vector2 offset = Vector2Subtract(mousePosition, player->position);
@@ -650,6 +689,28 @@ void UpdateWaves()
         {
             SpawnEnemies();
             currentWave++;
+            isUpgraderUIActive = false;
+        }
+    }
+}
+
+void UpdateUpgrader()
+{
+    for(int i = 0; i < firstFreeIndex; i++)
+    {
+        if(entities[i]->entityType != UPGRADER) { continue; }
+        if(nextWaveTimer <= 0) { entities[i]->isEnabled = false; continue; }
+        else
+        {
+            entities[i]->isEnabled = true;
+        }
+        float dist = getSqrDistance(player->position, entities[i]->position);
+        if(dist < 16.0f*16.0f)
+        {
+            if(IsKeyPressed(KEY_E))
+            {
+                isUpgraderUIActive = !isUpgraderUIActive;
+            }
         }
     }
 }
@@ -659,27 +720,163 @@ void EndWave()
     nextWaveTimer = NEXT_WAVE_TIMER;
 }
 
+void DrawPlayerHUD()
+{
+    const char* waveText;
+    if(nextWaveTimer > 0)
+    {
+        waveText = TextFormat("Next Wave starts in: %.1fs", nextWaveTimer);
+    }
+    else
+    {
+        waveText = TextFormat("Current Wave: %d", currentWave);
+    }
+    DrawText(waveText, 300, 20, 20, RED);
+
+    DrawText(TextFormat("Number of Dashes: %d", player->numberOfDashes), 300, 400, 20, RED);
+    DrawText(TextFormat("Player Health: %d", player->health), 25, 415, 20, RED);
+}
+
+bool isMouseInside(entity* e)
+{
+    Vector2 position = e->position;
+    Vector2 size = e->size;
+    Vector2 mousePosition = GetMousePosition();
+    bool a = mousePosition.x > position.x;
+    bool b = mousePosition.x < position.x + size.x;
+    bool c = mousePosition.y > position.y;
+    bool d = mousePosition.y < position.y + size.y;
+    return a && b && c && d;
+}
+
+void UpgradeHandgun()
+{
+    handgunUpgradeButton->currentDamagedCooldown = handgunUpgradeButton->damagedCooldown;
+    if(currentHandgunUpgrade < handgunUpgradesCount-1)
+    {
+        currentHandgunUpgrade++;
+        SetUpgrades();
+    }
+}
+
+void UpgradeDash()
+{
+    dashUpgradeButton->currentDamagedCooldown = dashUpgradeButton->damagedCooldown;
+    if(currentDashUpgrade < dashUpgradesCount-1)
+    {
+        currentDashUpgrade++;
+        SetUpgrades();
+    }
+}
+
+void UpgradeMaxHealth()
+{
+    maxHealthUpgradeButton->currentDamagedCooldown = maxHealthUpgradeButton->damagedCooldown;
+    if(currentMaxHealthUpgrade < maxHealthUpgradesCount-1)
+    {
+        currentMaxHealthUpgrade++;
+        SetUpgrades();
+    }
+}
+
+void DrawUpgraderUI()
+{
+    if(!isUpgraderUIActive) { return; }
+    for(int i = 0; i < firstFreeIndex; i++)
+    {
+        if(!entities[i]->isUI) { continue; }
+        if(entities[i]->entityType == UI_IMAGE)
+        {
+            DrawRectangleV(entities[i]->position, entities[i]->size, entities[i]->defaultColor);
+            continue;
+        }
+        Vector2 buttonPos = entities[i]->position;
+        Color outputColor = entities[i]->currentDamagedCooldown > 0 ? entities[i]->damagedColor : entities[i]->defaultColor;
+        DrawRectangleV(buttonPos, entities[i]->size, outputColor);
+        DrawText(entities[i]->buttonText, buttonPos.x + 40, buttonPos.y + 22, 20, RED);
+        if(isMouseInside(entities[i]) && IsMouseButtonDown(MOUSE_BUTTON_LEFT))
+        {
+            (*entities[i]->buttonCallback)();
+        }
+        if(entities[i]->currentDamagedCooldown > 0)
+        {
+            entities[i]->currentDamagedCooldown -= GetFrameTime();
+        }
+    }
+}
+
+void PrepareUpgrades()
+{
+    dashUpgrades[0].dashCooldown = 2.0f;
+    dashUpgrades[0].numberOfDashes = 2;
+
+    dashUpgrades[1].dashCooldown = 1.0f;
+    dashUpgrades[1].numberOfDashes = 4;
+
+    maxHealthUpgrades[0] = 100;
+    maxHealthUpgrades[1] = 150;
+
+    handgunUpgrades[0].attackCooldown = 0.5f;
+    handgunUpgrades[0].attackDamage = 10;
+
+    handgunUpgrades[1].attackCooldown = 0.25f;
+    handgunUpgrades[1].attackDamage = 20;
+}
+
+void SetUpgrades()
+{
+    player->dashCooldown = dashUpgrades[currentDashUpgrade].dashCooldown;
+    player->maxNumberOfDashes = dashUpgrades[currentDashUpgrade].numberOfDashes;
+    player->maxHealth = maxHealthUpgrades[currentMaxHealthUpgrade];
+    player->attackCooldown = handgunUpgrades[currentHandgunUpgrade].attackCooldown;
+    player->attackDamage = handgunUpgrades[currentHandgunUpgrade].attackDamage;
+}
+
 void SpawnHealthPickup(Vector2 position)
 {
     entity* health_pickup = createNewEntity(position, Vector2(8,8), Vector2(0.5f, 0.5f), BLUE, HEALTH_PICKUP, 0, 0, 0, 0, 0, 0, 0, 0, 0, RED, 0, 0, 0, NULL, 0);
     addEntity(health_pickup);
 }
 
+void SpawnUI()
+{
+    upgraderUIBackground = createNewEntity(Vector2(0,0), Vector2(800, 450), Vector2(0,0), (Color){128, 128, 128, 128}, UI_IMAGE, 0, 0, 0, 0, 0, 0, 0, 0, 0, RED, 0, 0, 0, NULL, 0);
+    addEntity(upgraderUIBackground);
+    handgunUpgradeButton = createNewEntity(Vector2(32, 64), Vector2(256,64), Vector2(0,0), WHITE, UI_BUTTON, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, GRAY, 0, 0, 0, NULL, 0);
+    addEntity(handgunUpgradeButton);
+    dashUpgradeButton = createNewEntity(Vector2(320, 64), Vector2(256,64), Vector2(0,0), WHITE, UI_BUTTON, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, GRAY, 0, 0, 0, NULL, 0);
+    addEntity(dashUpgradeButton);
+    maxHealthUpgradeButton = createNewEntity(Vector2(608, 64), Vector2(256,64), Vector2(0,0), WHITE, UI_BUTTON, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, GRAY, 0, 0, 0, NULL, 0);
+    addEntity(maxHealthUpgradeButton);
+
+    upgraderUIBackground->isUI = true;
+    handgunUpgradeButton->isUI = true;
+    handgunUpgradeButton->buttonText = "Upgrade Handgun";
+    handgunUpgradeButton->buttonCallback = UpgradeHandgun;
+    dashUpgradeButton->isUI = true;
+    dashUpgradeButton->buttonText = "Upgrade Dash";
+    dashUpgradeButton->buttonCallback = UpgradeDash;
+    maxHealthUpgradeButton->isUI = true;
+    maxHealthUpgradeButton->buttonText = "Upgrade Max Health";
+    maxHealthUpgradeButton->buttonCallback = UpgradeMaxHealth;
+}
+
 void SpawnEntites()
 {
     player = createNewEntity(Vector2(400, 200), Vector2(20, 20), Vector2(0.5f, 0.5f), VIOLET, PLAYER, 2.5f, 128, 2, 2.0f, 100, 10, 0.5f, 10.0f, 0.125f, RED, 0, 0, 0, NULL, 0);
     addEntity(player);
-    entity* anotherEntity = createNewEntity(Vector2(0,0), Vector2(100, 100), Vector2(0.5f, 0.5f), GOLD, DEFAULT, 0, 0, 0, 0, 0 ,0, 0, 0, 0, RED, 0, 0, 0, NULL, 0);
-    addEntity(anotherEntity);
+    entity* upgrader = createNewEntity(Vector2(400,250), Vector2(32, 32), Vector2(0.5f, 0.5f), GOLD, UPGRADER, 0, 0, 0, 0, 0 ,0, 0, 0, 0, RED, 0, 0, 0, NULL, 0);
+    addEntity(upgrader);
+    SpawnUI();
 }
 
 void SpawnEnemies()
 {
-    entity* enemy = createNewEntity(Vector2(100, 200), Vector2(64, 64), Vector2(0.5f, 0.5f), DARKPURPLE, ENEMY, 0.5f, 0, 0, 0, 40, 20, 0.5f, 50.0f, 0.125f, RED, 350.0f, 100.0f, 20.0f, NULL, 2.0f);
-    addEntity(enemy);
-    entity* health_hitbox = createNewEntity(Vector2(-36.0f, 0.0f), Vector2(16,16), Vector2(0.5f, 0.5f), BLUE, HEALTH_HITBOX, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, RED, 0, 0, 0, enemy, 0);
+    entity* bigEnemy = createNewEntity(Vector2(100, 200), Vector2(64, 64), Vector2(0.5f, 0.5f), DARKPURPLE, ENEMY, 0.5f, 0, 0, 0, 40, 20, 0.5f, 50.0f, 0.125f, RED, 350.0f, 100.0f, 20.0f, NULL, 2.0f);
+    addEntity(bigEnemy);
+    entity* health_hitbox = createNewEntity(Vector2(-36.0f, 0.0f), Vector2(16,16), Vector2(0.5f, 0.5f), BLUE, HEALTH_HITBOX, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, RED, 0, 0, 0, bigEnemy, 0);
     addEntity(health_hitbox);
-    enemy->child = health_hitbox;
+    bigEnemy->child = health_hitbox;
     for(int i = 0; i < 3; i++)
     {
         entity* fastEnemy = createNewEntity(Vector2(200, 300 + i * 30), Vector2(16, 16), Vector2(0.5f, 0.5f), DARKPURPLE, ENEMY, 3.0f, 0, 0, 0, 20, 10, 0.25f, 25.0f, 0.125f, RED, 650.0f, 500.0f, 100.0f, NULL, 0.5f);
@@ -706,7 +903,8 @@ int main()
     InitWindow(800, 450, "GameRunner - Raylib - C");
 
     SpawnEntites();
-    const char* waveText;
+    PrepareUpgrades();
+    SetUpgrades();
     while (!WindowShouldClose())
     {
         BeginDrawing();
@@ -716,8 +914,10 @@ int main()
             UpdateHealthHitBoxes();
             UpdateHealthPickups();
             UpdateWaves();
+            UpdateUpgrader();
             for(int i = 0; i < firstFreeIndex; i++)
             {
+                if(!entities[i]->isEnabled || entities[i]->isUI) { continue; }
                 //printf("i: %d\n", i);
                 // printf("entityType: %d\n", entities[i]->entityType);
                 Vector2 startPos = GetEntityCorner(entities[i]);
@@ -731,18 +931,8 @@ int main()
                     DrawRectangleV(startPos, entities[i]->size, outputColor);
                 }
             }
-            if(nextWaveTimer > 0)
-            {
-                waveText = TextFormat("Next Wave starts in: %.1fs", nextWaveTimer);
-            }
-            else
-            {
-                waveText = TextFormat("Current Wave: %d", currentWave);
-            }
-            DrawText(waveText, 300, 20, 20, RED);
-
-            DrawText(TextFormat("Number of Dashes: %d", player->numberOfDashes), 300, 400, 20, RED);
-            DrawText(TextFormat("Player Health: %d", player->health), 25, 415, 20, RED);
+            DrawPlayerHUD();
+            DrawUpgraderUI();
 
             DrawFPS(0, 0);
         EndDrawing();
