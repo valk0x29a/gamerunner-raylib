@@ -833,16 +833,19 @@ void DrawUpgraderUI()
             DrawRectangleV(entities[i]->position, entities[i]->size, entities[i]->defaultColor);
             continue;
         }
+
         int upgradeIndex = entities[i]->upgradeUIButtonIndex;
-        Vector2 buttonPos = entities[i]->position;
         bool isUpgradeAvailable = GetUpgradeCost(upgradeIndex) <= playerCash;
         Color outputColor = entities[i]->damagedColor;
         if(isUpgradeAvailable)
         {
             outputColor = entities[i]->currentDamagedCooldown > 0 ? entities[i]->damagedColor : entities[i]->defaultColor;
         }
+
+        Vector2 buttonPos = entities[i]->position;
         DrawRectangleV(buttonPos, entities[i]->size, outputColor);
         DrawText(GetUpgradeButtonText(upgradeIndex), buttonPos.x + 12, buttonPos.y + 22, 20, RED);
+
         int upgradeCost = GetUpgradeCost(upgradeIndex);
         const char* detailsText;
         if(upgradeCost < INT_MAX)
@@ -854,10 +857,12 @@ void DrawUpgraderUI()
             detailsText = "Upgrade Maximazed";
         }
         DrawText(detailsText, buttonPos.x + 24, buttonPos.y + 44, 12, RED);
+
         if(isMouseInside(entities[i]) && IsMouseButtonDown(MOUSE_BUTTON_LEFT) && isUpgradeAvailable)
         {
             (*entities[i]->buttonCallback)(entities[i]);
         }
+
         if(entities[i]->currentDamagedCooldown > 0)
         {
             entities[i]->currentDamagedCooldown -= GetFrameTime();
