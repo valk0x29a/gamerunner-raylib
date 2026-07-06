@@ -1,5 +1,6 @@
 #include "raylib.h"
 #include "raymath.h"
+#include <limits.h>
 #include <stdlib.h>
 #include <float.h>
 #include <stdio.h>
@@ -10,8 +11,8 @@
 #define ENEMY 1 << 3
 #define HEALTH_HITBOX 1 << 4
 #define HEALTH_PICKUP 1 << 5
-#define UI_BUTTON 1 << 6
-#define UI_IMAGE 1 << 7
+#define UI_UPGRADER_BUTTON 1 << 6
+#define UI_UPGRADER_IMAGE 1 << 7
 
 #define NEXT_WAVE_TIMER 5.0f
 
@@ -75,17 +76,28 @@ typedef struct entity
     bool isFlipped;
     bool isEnabled;
     bool isUI;
-    void (*buttonCallback)();
-    const char* buttonText;
+    void (*buttonCallback)(struct entity* thisButton);
     int cashDropAmount;
+    int upgradeUIButtonIndex;
 } entity;
 
 int firstFreeIndex = 0;
 int capacity = 4;
 entity** entities;
 
+int currentHandgunUpgrade = 0;
+int handgunUpgradesCount = 2;
+int handgunUpgradesPrices[1];
+typedef struct handgunUpgrade
+{
+    int attackDamage;
+    float attackCooldown;
+} handgunUpgrade;
+handgunUpgrade handgunUpgrades[2];
+
 int currentDashUpgrade = 0;
 int dashUpgradesCount = 2;
+int dashUpgradesPrices[1];
 typedef struct dashUpgrade
 {
     int numberOfDashes;
@@ -95,16 +107,19 @@ dashUpgrade dashUpgrades[2];
 
 int currentMaxHealthUpgrade = 0;
 int maxHealthUpgradesCount = 2;
+int maxHealthUpgradesPrices[1];
 int maxHealthUpgrades[2];
 
-int currentHandgunUpgrade = 0;
-int handgunUpgradesCount = 2;
-typedef struct handgunUpgrade
+const char* GetUpgradeButtonText(int upgradeIndex)
 {
-    int attackDamage;
-    float attackCooldown;
-} handgunUpgrade;
-handgunUpgrade handgunUpgrades[2];
+    switch(upgradeIndex)
+    {
+        case 0: return "Upgrade Handgun";
+        case 1: return "Upgrade Dash";
+        case 2: return "Upgrade Max Health";
+    };
+    return "Invalid Upgrade Index";
+}
 
 int enemiesCount = 0;
 
@@ -756,32 +771,38 @@ bool isMouseInside(entity* e)
     return a && b && c && d;
 }
 
-void UpgradeHandgun()
+int* GetCurrentUpgrade(int upgradeIndex)
 {
-    handgunUpgradeButton->currentDamagedCooldown = handgunUpgradeButton->damagedCooldown;
-    if(currentHandgunUpgrade < handgunUpgradesCount-1)
+    switch(upgradeIndex)
     {
-        currentHandgunUpgrade++;
-        SetUpgrades();
-    }
+        case 0: return &currentHandgunUpgrade;
+        case 1: return &currentDashUpgrade;
+        case 2: return &currentMaxHealthUpgrade;
+    };
+    return NULL;
 }
 
-void UpgradeDash()
+int GetUpgradesCount(int upgradeIndex)
 {
-    dashUpgradeButton->currentDamagedCooldown = dashUpgradeButton->damagedCooldown;
-    if(currentDashUpgrade < dashUpgradesCount-1)
+    switch(upgradeIndex)
     {
-        currentDashUpgrade++;
-        SetUpgrades();
-    }
+        case 0: return handgunUpgradesCount;
+        case 1: return dashUpgradesCount;
+        case 2: return maxHealthUpgradesCount;
+    };
+    return INT_MAX;
 }
 
-void UpgradeMaxHealth()
+
+void Upgrade(entity* thisButton)
 {
-    maxHealthUpgradeButton->currentDamagedCooldown = maxHealthUpgradeButton->damagedCooldown;
-    if(currentMaxHealthUpgrade < maxHealthUpgradesCount-1)
+    int upgradeIndex = thisButton->upgradeUIButtonIndex;
+    thisButton->currentDamagedCooldown = thisButton->damagedCooldown;
+    int* currentUpgrade = GetCurrentUpgrade(upgradeIndex);
+    int upgradesCount = GetUpgradesCount(upgradeIndex);
+    if(*currentUpgrade < upgradesCount-1)
     {
-        currentMaxHealthUpgrade++;
+        (*currentUpgrade)++;
         SetUpgrades();
     }
 }
@@ -792,18 +813,19 @@ void DrawUpgraderUI()
     for(int i = 0; i < firstFreeIndex; i++)
     {
         if(!entities[i]->isUI) { continue; }
-        if(entities[i]->entityType == UI_IMAGE)
+        if(entities[i]->entityType == UI_UPGRADER_IMAGE)
         {
             DrawRectangleV(entities[i]->position, entities[i]->size, entities[i]->defaultColor);
             continue;
         }
+        int upgradeIndex = entities[i]->upgradeUIButtonIndex;
         Vector2 buttonPos = entities[i]->position;
         Color outputColor = entities[i]->currentDamagedCooldown > 0 ? entities[i]->damagedColor : entities[i]->defaultColor;
         DrawRectangleV(buttonPos, entities[i]->size, outputColor);
-        DrawText(entities[i]->buttonText, buttonPos.x + 12, buttonPos.y + 22, 20, RED);
+        DrawText(GetUpgradeButtonText(upgradeIndex), buttonPos.x + 12, buttonPos.y + 22, 20, RED);
         if(isMouseInside(entities[i]) && IsMouseButtonDown(MOUSE_BUTTON_LEFT))
         {
-            (*entities[i]->buttonCallback)();
+            (*entities[i]->buttonCallback)(entities[i]);
         }
         if(entities[i]->currentDamagedCooldown > 0)
         {
@@ -814,20 +836,23 @@ void DrawUpgraderUI()
 
 void PrepareUpgrades()
 {
-    dashUpgrades[0].dashCooldown = 2.0f;
-    dashUpgrades[0].numberOfDashes = 2;
-
-    dashUpgrades[1].dashCooldown = 1.0f;
-    dashUpgrades[1].numberOfDashes = 4;
-
-    maxHealthUpgrades[0] = 100;
-    maxHealthUpgrades[1] = 150;
-
     handgunUpgrades[0].attackCooldown = 0.5f;
     handgunUpgrades[0].attackDamage = 10;
 
     handgunUpgrades[1].attackCooldown = 0.25f;
     handgunUpgrades[1].attackDamage = 20;
+    handgunUpgradesPrices[0] = 100;
+
+    dashUpgrades[0].dashCooldown = 2.0f;
+    dashUpgrades[0].numberOfDashes = 2;
+
+    dashUpgrades[1].dashCooldown = 1.0f;
+    dashUpgrades[1].numberOfDashes = 4;
+    dashUpgradesPrices[0] = 100;
+
+    maxHealthUpgrades[0] = 100;
+    maxHealthUpgrades[1] = 150;
+    maxHealthUpgradesPrices[0] = 100;
 }
 
 void SetUpgrades()
@@ -847,25 +872,25 @@ void SpawnHealthPickup(Vector2 position)
 
 void SpawnUI()
 {
-    upgraderUIBackground = createNewEntity(Vector2(0,0), Vector2(800, 450), Vector2(0,0), (Color){128, 128, 128, 128}, UI_IMAGE, 0, 0, 0, 0, 0, 0, 0, 0, 0, RED, 0, 0, 0, NULL, 0);
+    upgraderUIBackground = createNewEntity(Vector2(0,0), Vector2(800, 450), Vector2(0,0), (Color){128, 128, 128, 128}, UI_UPGRADER_IMAGE, 0, 0, 0, 0, 0, 0, 0, 0, 0, RED, 0, 0, 0, NULL, 0);
     addEntity(upgraderUIBackground);
-    handgunUpgradeButton = createNewEntity(Vector2(32, 64), Vector2(208,64), Vector2(0,0), WHITE, UI_BUTTON, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, GRAY, 0, 0, 0, NULL, 0);
+    handgunUpgradeButton = createNewEntity(Vector2(32, 64), Vector2(208,64), Vector2(0,0), WHITE, UI_UPGRADER_BUTTON, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, GRAY, 0, 0, 0, NULL, 0);
     addEntity(handgunUpgradeButton);
-    dashUpgradeButton = createNewEntity(Vector2(256, 64), Vector2(192,64), Vector2(0,0), WHITE, UI_BUTTON, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, GRAY, 0, 0, 0, NULL, 0);
+    dashUpgradeButton = createNewEntity(Vector2(256, 64), Vector2(192,64), Vector2(0,0), WHITE, UI_UPGRADER_BUTTON, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, GRAY, 0, 0, 0, NULL, 0);
     addEntity(dashUpgradeButton);
-    maxHealthUpgradeButton = createNewEntity(Vector2(480, 64), Vector2(224,64), Vector2(0,0), WHITE, UI_BUTTON, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, GRAY, 0, 0, 0, NULL, 0);
+    maxHealthUpgradeButton = createNewEntity(Vector2(480, 64), Vector2(224,64), Vector2(0,0), WHITE, UI_UPGRADER_BUTTON, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, GRAY, 0, 0, 0, NULL, 0);
     addEntity(maxHealthUpgradeButton);
 
     upgraderUIBackground->isUI = true;
     handgunUpgradeButton->isUI = true;
-    handgunUpgradeButton->buttonText = "Upgrade Handgun";
-    handgunUpgradeButton->buttonCallback = UpgradeHandgun;
+    handgunUpgradeButton->buttonCallback = Upgrade;
+    handgunUpgradeButton->upgradeUIButtonIndex = 0;
     dashUpgradeButton->isUI = true;
-    dashUpgradeButton->buttonText = "Upgrade Dash";
-    dashUpgradeButton->buttonCallback = UpgradeDash;
+    dashUpgradeButton->buttonCallback = Upgrade;
+    dashUpgradeButton->upgradeUIButtonIndex = 1;
     maxHealthUpgradeButton->isUI = true;
-    maxHealthUpgradeButton->buttonText = "Upgrade Max Health";
-    maxHealthUpgradeButton->buttonCallback = UpgradeMaxHealth;
+    maxHealthUpgradeButton->buttonCallback = Upgrade;
+    maxHealthUpgradeButton->upgradeUIButtonIndex = 2;
 }
 
 void SpawnEntites()
