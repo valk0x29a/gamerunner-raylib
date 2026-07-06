@@ -533,6 +533,7 @@ void UpdateEnemies()
         if(entities[i]->entityType != ENEMY) { continue; }
         if(entities[i]->health <= 0)
         {
+            playerCash += entities[i]->cashDropAmount;
             removeEntity(i);
             continue;
         }
@@ -757,6 +758,7 @@ void DrawPlayerHUD()
 
     DrawText(TextFormat("Number of Dashes: %d", player->numberOfDashes), 300, 400, 20, RED);
     DrawText(TextFormat("Player Health: %d", player->health), 25, 415, 20, RED);
+    DrawText(TextFormat("Cash: %d", playerCash), 25, 25, 20, RED);
 }
 
 bool isMouseInside(entity* e)
@@ -793,6 +795,18 @@ int GetUpgradesCount(int upgradeIndex)
     return INT_MAX;
 }
 
+int GetUpgradeCost(int upgradeIndex)
+{
+    int currentUpgrade = *GetCurrentUpgrade(upgradeIndex);
+    if(currentUpgrade == GetUpgradesCount(upgradeIndex)-1) { return INT_MAX; }
+    switch(upgradeIndex)
+    {
+        case 0: return handgunUpgradesPrices[currentUpgrade];
+        case 1: return dashUpgradesPrices[currentUpgrade];
+        case 2: return maxHealthUpgradesPrices[currentUpgrade];
+    };
+    return INT_MAX;
+}
 
 void Upgrade(entity* thisButton)
 {
@@ -802,6 +816,7 @@ void Upgrade(entity* thisButton)
     int upgradesCount = GetUpgradesCount(upgradeIndex);
     if(*currentUpgrade < upgradesCount-1)
     {
+        playerCash -= GetUpgradeCost(upgradeIndex);
         (*currentUpgrade)++;
         SetUpgrades();
     }
@@ -820,10 +835,26 @@ void DrawUpgraderUI()
         }
         int upgradeIndex = entities[i]->upgradeUIButtonIndex;
         Vector2 buttonPos = entities[i]->position;
-        Color outputColor = entities[i]->currentDamagedCooldown > 0 ? entities[i]->damagedColor : entities[i]->defaultColor;
+        bool isUpgradeAvailable = GetUpgradeCost(upgradeIndex) <= playerCash;
+        Color outputColor = entities[i]->damagedColor;
+        if(isUpgradeAvailable)
+        {
+            outputColor = entities[i]->currentDamagedCooldown > 0 ? entities[i]->damagedColor : entities[i]->defaultColor;
+        }
         DrawRectangleV(buttonPos, entities[i]->size, outputColor);
         DrawText(GetUpgradeButtonText(upgradeIndex), buttonPos.x + 12, buttonPos.y + 22, 20, RED);
-        if(isMouseInside(entities[i]) && IsMouseButtonDown(MOUSE_BUTTON_LEFT))
+        int upgradeCost = GetUpgradeCost(upgradeIndex);
+        const char* detailsText;
+        if(upgradeCost < INT_MAX)
+        {
+            detailsText = TextFormat("Cash Required: %d", GetUpgradeCost(upgradeIndex));
+        }
+        else
+        {
+            detailsText = "Upgrade Maximazed";
+        }
+        DrawText(detailsText, buttonPos.x + 24, buttonPos.y + 44, 12, RED);
+        if(isMouseInside(entities[i]) && IsMouseButtonDown(MOUSE_BUTTON_LEFT) && isUpgradeAvailable)
         {
             (*entities[i]->buttonCallback)(entities[i]);
         }
@@ -927,6 +958,10 @@ void ReloadGame()
     nextWaveTimer = NEXT_WAVE_TIMER;
     currentWave = 0;
     enemiesCount = 0;
+    playerCash = 0;
+    currentHandgunUpgrade = 0;
+    currentDashUpgrade = 0;
+    currentMaxHealthUpgrade = 0;
     SpawnEntites();
 }
 
