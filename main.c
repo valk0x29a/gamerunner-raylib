@@ -448,7 +448,7 @@ void UpdatePlayer()
         // printf("%d\n", player->numberOfDashes);
         // printf("%f\n", player->currentDashCooldown);
         if(IsKeyPressed(KEY_SPACE) && player->numberOfDashes > 0)
-        {   
+        {
             if(dashXDirection == 0 && dashYDirection == 0)
             {
                 dashYDirection = 1;
