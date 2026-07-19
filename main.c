@@ -762,6 +762,18 @@ void UpdateDestroyTimer()
     }
 }
 
+void UpdateDamageTexts()
+{
+    for(int i = 0; i < firstFreeIndex; i++)
+    {
+        if(!entities[i]->isUI) { continue; }
+        if(entities[i]->entityType == UI_DAMAGE_TEXT)
+        {
+            entities[i]->position.y -= entities[i]->speed * GetFrameTime();
+        }
+    }
+}
+
 void EndWave()
 {
     nextWaveTimer = NEXT_WAVE_TIMER;
@@ -939,7 +951,7 @@ void SetUpgrades()
 
 void SpawnDamageText(Vector2 position, int damage)
 {
-    entity* damageText = createNewEntity(position, Vector2(0,0), Vector2(0, 0), RED, UI_DAMAGE_TEXT, 0, 0, 0, 0, 0, damage, 0, 0, 0, RED, 0, 0, 0, NULL, 0);
+    entity* damageText = createNewEntity(position, Vector2(0,0), Vector2(0, 0), RED, UI_DAMAGE_TEXT, 16.0f, 0, 0, 0, 0, damage, 0, 0, 0, RED, 0, 0, 0, NULL, 0);
     addEntity(damageText);
     damageText->destroyTimer = -1.0f;
     damageText->isUI = true;
@@ -1034,6 +1046,7 @@ int main()
             UpdateHealthPickups();
             UpdateWaves();
             UpdateUpgrader();
+            UpdateDamageTexts();
             UpdateDestroyTimer();
             for(int i = 0; i < firstFreeIndex; i++)
             {
