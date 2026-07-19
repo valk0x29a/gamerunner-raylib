@@ -13,6 +13,7 @@
 #define HEALTH_PICKUP 1 << 5
 #define UI_UPGRADER_BUTTON 1 << 6
 #define UI_UPGRADER_IMAGE 1 << 7
+#define UI_DAMAGE_TEXT 1 << 8
 
 #define NEXT_WAVE_TIMER 5.0f
 
@@ -26,6 +27,7 @@ void EndWave();
 void SpawnEnemies();
 void SpawnHealthPickup(Vector2 position);
 void SetUpgrades();
+void SpawnDamageText(Vector2 position, int damage);
 
 typedef struct RayCastHitResult
 {
@@ -79,6 +81,7 @@ typedef struct entity
     void (*buttonCallback)(struct entity* thisButton);
     int cashDropAmount;
     int upgradeUIButtonIndex;
+    float destroyTimer;
 } entity;
 
 int firstFreeIndex = 0;
@@ -504,7 +507,10 @@ void UpdatePlayer()
                     entities[entityIndex]->currentDamagedCooldown = entities[entityIndex]->damagedCooldown;
                     e = entities[entityIndex]->parent;
                 }
-                e->health -= player->attackDamage;
+                float x = result.hitPosition.x;
+                bool isHittingFront = e->isFlipped ? x < e->position.x + e->size.x : x > e->position.x;
+                float attackMultiplier = isHittingFront ? 0.5f : 1.0f;
+                e->health -= player->attackDamage * attackMultiplier;
                 e->currentDamagedCooldown = e->damagedCooldown;
                 if(e->health <= 0)
                 {
@@ -514,6 +520,8 @@ void UpdatePlayer()
                         SpawnHealthPickup(e->position);
                     }
                 }
+                Vector2 damageTextPosition = Vector2Add(result.hitPosition, Vector2(0, -20));
+                SpawnDamageText(damageTextPosition, player->attackDamage * attackMultiplier);
             }
             player->currentAttackCooldown = player->attackCooldown;
         }
@@ -738,6 +746,22 @@ void UpdateUpgrader()
     }
 }
 
+void UpdateDestroyTimer()
+{
+    for(int i = 0; i < firstFreeIndex; i++)
+    {
+        entity* e = entities[i];
+        if(e->destroyTimer < 0.0f)
+        {
+            e->destroyTimer += GetFrameTime();
+            if(e->destroyTimer >= 0.0f)
+            {
+                removeEntity(i);
+            }
+        }
+    }
+}
+
 void EndWave()
 {
     nextWaveTimer = NEXT_WAVE_TIMER;
@@ -822,6 +846,19 @@ void Upgrade(entity* thisButton)
     }
 }
 
+void DrawDamageTexts()
+{
+    for(int i = 0; i < firstFreeIndex; i++)
+    {
+        if(!entities[i]->isUI) { continue; }
+        if(entities[i]->entityType == UI_DAMAGE_TEXT)
+        {
+            DrawText(TextFormat("-%d", entities[i]->attackDamage), entities[i]->position.x, entities[i]->position.y, 20, entities[i]->defaultColor);
+            continue;
+        }
+    }
+}
+
 void DrawUpgraderUI()
 {
     if(!isUpgraderUIActive) { return; }
@@ -898,6 +935,14 @@ void SetUpgrades()
     player->maxHealth = maxHealthUpgrades[currentMaxHealthUpgrade];
     player->attackCooldown = handgunUpgrades[currentHandgunUpgrade].attackCooldown;
     player->attackDamage = handgunUpgrades[currentHandgunUpgrade].attackDamage;
+}
+
+void SpawnDamageText(Vector2 position, int damage)
+{
+    entity* damageText = createNewEntity(position, Vector2(0,0), Vector2(0, 0), RED, UI_DAMAGE_TEXT, 0, 0, 0, 0, 0, damage, 0, 0, 0, RED, 0, 0, 0, NULL, 0);
+    addEntity(damageText);
+    damageText->destroyTimer = -1.0f;
+    damageText->isUI = true;
 }
 
 void SpawnHealthPickup(Vector2 position)
@@ -989,6 +1034,7 @@ int main()
             UpdateHealthPickups();
             UpdateWaves();
             UpdateUpgrader();
+            UpdateDestroyTimer();
             for(int i = 0; i < firstFreeIndex; i++)
             {
                 if(!entities[i]->isEnabled || entities[i]->isUI) { continue; }
@@ -1006,6 +1052,7 @@ int main()
                 }
             }
             DrawPlayerHUD();
+            DrawDamageTexts();
             DrawUpgraderUI();
 
             DrawFPS(0, 0);
