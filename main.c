@@ -86,11 +86,16 @@ typedef struct entity
     int ammoCount;
     int maxAmmoCount;
     float reloadCooldown;
+    bool isAutomatic;
 } entity;
 
 int firstFreeIndex = 0;
 int capacity = 4;
 entity** entities;
+
+entity* equippedWeapon;
+entity* handgun; // always at first slot
+entity* inventorySecondSlot;
 
 int currentHandgunUpgrade = 0;
 int handgunUpgradesCount = 2;
@@ -492,25 +497,37 @@ void UpdatePlayer()
             }
         }
 
-        if(player->currentAttackCooldown > 0)
+        if(player->attackCooldown > 0)
         {
-            player->currentAttackCooldown -= GetFrameTime();
+            player->attackCooldown -= GetFrameTime();
         }
         // printf("%f\n", player->currentAttackCooldown);
         if(IsKeyPressed(KEY_R))
         {
-            player->reloadCooldown = 10.0f;
+            player->reloadCooldown = equippedWeapon->reloadCooldown;
         }
         if(player->reloadCooldown > 0)
         {
             player->reloadCooldown -= GetFrameTime();
             if(player->reloadCooldown <= 0)
             {
-                player->ammoCount = player->maxAmmoCount;
+                equippedWeapon->ammoCount = equippedWeapon->maxAmmoCount;
             }
         }
-        printf("current ammo %d\n", player->ammoCount);
-        if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && player->currentAttackCooldown <= 0 && player->reloadCooldown <= 0 && !isUpgraderUIActive && player->ammoCount > 0)
+
+        if(IsKeyPressed(KEY_ONE))
+        {
+            equippedWeapon = handgun;
+            player->reloadCooldown = 0;
+        }
+        if(IsKeyPressed(KEY_TWO))
+        {
+            equippedWeapon = inventorySecondSlot;
+            player->reloadCooldown = 0;
+        }
+
+        bool shouldShot = equippedWeapon->isAutomatic ? IsMouseButtonDown(MOUSE_LEFT_BUTTON) : IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
+        if(shouldShot && player->attackCooldown <= 0 && player->reloadCooldown <= 0 && !isUpgraderUIActive && equippedWeapon->ammoCount > 0)
         {
             Vector2 mousePosition = GetMousePosition();
             Vector2 offset = Vector2Subtract(mousePosition, player->position);
@@ -530,7 +547,7 @@ void UpdatePlayer()
                 float marginOfError = 1.0f;
                 bool isHittingFront = e->isFlipped ? x < e->position.x + e->size.x - marginOfError : x > e->position.x + marginOfError;
                 float attackMultiplier = isHittingFront ? 0.5f : 1.0f;
-                e->health -= player->attackDamage * attackMultiplier;
+                e->health -= equippedWeapon->attackDamage * attackMultiplier;
                 e->currentDamagedCooldown = e->damagedCooldown;
                 if(e->health <= 0)
                 {
@@ -541,13 +558,13 @@ void UpdatePlayer()
                     }
                 }
                 Vector2 damageTextPosition = Vector2Add(result.hitPosition, Vector2(0, -20));
-                SpawnDamageText(damageTextPosition, player->attackDamage * attackMultiplier);
+                SpawnDamageText(damageTextPosition, equippedWeapon->attackDamage * attackMultiplier);
             }
-            player->currentAttackCooldown = player->attackCooldown;
-            player->ammoCount--;
-            if(player->ammoCount <= 0)
+            player->attackCooldown = equippedWeapon->attackCooldown;
+            equippedWeapon->ammoCount--;
+            if(equippedWeapon->ammoCount <= 0)
             {
-                player->reloadCooldown = 10.0f;
+                player->reloadCooldown = equippedWeapon->reloadCooldown;
             }
         }
 
@@ -820,7 +837,7 @@ void DrawPlayerHUD()
     DrawText(TextFormat("Number of Dashes: %d", player->numberOfDashes), 300, 400, 20, RED);
     DrawText(TextFormat("Player Health: %d", player->health), 25, 415, 20, RED);
     DrawText(TextFormat("Cash: %d", playerCash), 25, 25, 20, RED);
-    const char* text = player->reloadCooldown > 0 ? "Reloading..." : TextFormat("Ammo: %d/%d", player->ammoCount, player->maxAmmoCount);
+    const char* text = player->reloadCooldown > 0 ? "Reloading..." : TextFormat("Ammo: %d/%d", equippedWeapon->ammoCount, equippedWeapon->maxAmmoCount);
     DrawText(text, 675, 415, 20, RED);
 }
 
@@ -1022,10 +1039,23 @@ void SpawnUI()
 
 void SpawnEntites()
 {
-    player = createNewEntity(Vector2(400, 200), Vector2(20, 20), Vector2(0.5f, 0.5f), VIOLET, PLAYER, 2.5f, 128, 2, 2.0f, 100, 10, 0.5f, 10.0f, 0.125f, RED, 0, 0, 0, NULL, 0);
+    player = createNewEntity(Vector2(400, 200), Vector2(20, 20), Vector2(0.5f, 0.5f), VIOLET, PLAYER, 2.5f, 128, 2, 2.0f, 100, 0, 0, 0, 0.125f, RED, 0, 0, 0, NULL, 0);
     addEntity(player);
-    player->ammoCount = 7;
-    player->maxAmmoCount = 7;
+    player->reloadCooldown = 0;
+    handgun = createNewEntity(Vector2(0,0), Vector2(0,0), Vector2(0,0), VIOLET, DEFAULT, 0, 0, 0, 0, 0, 10, 0.5f, 10.0f, 0, RED, 0, 0, 0, NULL, 0);
+    addEntity(handgun);
+    handgun->ammoCount = 7;
+    handgun->maxAmmoCount = 7;
+    handgun->reloadCooldown = 5.0f;
+    handgun->isAutomatic = false;
+    equippedWeapon = handgun;
+    entity* sharpener = createNewEntity(Vector2(0,0), Vector2(0,0), Vector2(0,0), VIOLET, DEFAULT, 0, 0, 0, 0, 0, 5, 0.25f, 10.0f, 0, RED, 0, 0, 0, NULL, 0);
+    addEntity(sharpener);
+    sharpener->ammoCount = 30;
+    sharpener->maxAmmoCount = 30;
+    sharpener->reloadCooldown = 10.0f;
+    sharpener->isAutomatic = true;
+    inventorySecondSlot = sharpener;
     entity* upgrader = createNewEntity(Vector2(400,250), Vector2(32, 32), Vector2(0.5f, 0.5f), GOLD, UPGRADER, 0, 0, 0, 0, 0 ,0, 0, 0, 0, RED, 0, 0, 0, NULL, 0);
     addEntity(upgrader);
     SpawnUI();
