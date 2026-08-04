@@ -28,6 +28,7 @@ void SpawnEnemies();
 void SpawnHealthPickup(Vector2 position);
 void SetUpgrades();
 void SpawnDamageText(Vector2 position, int damage);
+void SpawnHitPoint(Vector2 position);
 
 typedef struct RayCastHitResult
 {
@@ -82,6 +83,9 @@ typedef struct entity
     int cashDropAmount;
     int upgradeUIButtonIndex;
     float destroyTimer;
+    int ammoCount;
+    int maxAmmoCount;
+    float reloadCooldown;
 } entity;
 
 int firstFreeIndex = 0;
@@ -354,6 +358,7 @@ RayCastHitResult RayCastHit(Vector2 r1, Vector2 r2, uint entityTypeMask)
         {
             if(!colliding[j]) { continue; }
             distance = getSqrDistance(r1, results[j]);
+            printf("result index: %d, pos x: %f , y: %f\n", j, results[j].x, results[j].y);
             if(distance < closestDistance)
             {
                 closestHit = results[j];
@@ -366,6 +371,7 @@ RayCastHitResult RayCastHit(Vector2 r1, Vector2 r2, uint entityTypeMask)
     RayCastHitResult result;
     result.colliding = closestDistance != FLT_MAX;
     result.hitPosition = closestHit;
+    SpawnHitPoint(result.hitPosition);
     result.entityIndex = closestEntityIndex;
     return result;
 }
@@ -491,7 +497,20 @@ void UpdatePlayer()
             player->currentAttackCooldown -= GetFrameTime();
         }
         // printf("%f\n", player->currentAttackCooldown);
-        if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && player->currentAttackCooldown <= 0 && !isUpgraderUIActive)
+        if(IsKeyPressed(KEY_R))
+        {
+            player->reloadCooldown = 10.0f;
+        }
+        if(player->reloadCooldown > 0)
+        {
+            player->reloadCooldown -= GetFrameTime();
+            if(player->reloadCooldown <= 0)
+            {
+                player->ammoCount = player->maxAmmoCount;
+            }
+        }
+        printf("current ammo %d\n", player->ammoCount);
+        if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && player->currentAttackCooldown <= 0 && player->reloadCooldown <= 0 && !isUpgraderUIActive && player->ammoCount > 0)
         {
             Vector2 mousePosition = GetMousePosition();
             Vector2 offset = Vector2Subtract(mousePosition, player->position);
@@ -508,13 +527,14 @@ void UpdatePlayer()
                     e = entities[entityIndex]->parent;
                 }
                 float x = result.hitPosition.x;
-                bool isHittingFront = e->isFlipped ? x < e->position.x + e->size.x : x > e->position.x;
+                float marginOfError = 1.0f;
+                bool isHittingFront = e->isFlipped ? x < e->position.x + e->size.x - marginOfError : x > e->position.x + marginOfError;
                 float attackMultiplier = isHittingFront ? 0.5f : 1.0f;
                 e->health -= player->attackDamage * attackMultiplier;
                 e->currentDamagedCooldown = e->damagedCooldown;
                 if(e->health <= 0)
                 {
-                    printf("%d\n", entities[entityIndex]->entityType);
+                    // printf("%d\n", entities[entityIndex]->entityType);
                     if(entities[entityIndex]->entityType == HEALTH_HITBOX)
                     {
                         SpawnHealthPickup(e->position);
@@ -524,6 +544,11 @@ void UpdatePlayer()
                 SpawnDamageText(damageTextPosition, player->attackDamage * attackMultiplier);
             }
             player->currentAttackCooldown = player->attackCooldown;
+            player->ammoCount--;
+            if(player->ammoCount <= 0)
+            {
+                player->reloadCooldown = 10.0f;
+            }
         }
 
         if(player->currentDamagedCooldown > 0)
@@ -795,6 +820,8 @@ void DrawPlayerHUD()
     DrawText(TextFormat("Number of Dashes: %d", player->numberOfDashes), 300, 400, 20, RED);
     DrawText(TextFormat("Player Health: %d", player->health), 25, 415, 20, RED);
     DrawText(TextFormat("Cash: %d", playerCash), 25, 25, 20, RED);
+    const char* text = player->reloadCooldown > 0 ? "Reloading..." : TextFormat("Ammo: %d/%d", player->ammoCount, player->maxAmmoCount);
+    DrawText(text, 675, 415, 20, RED);
 }
 
 bool isMouseInside(entity* e)
@@ -949,6 +976,13 @@ void SetUpgrades()
     player->attackDamage = handgunUpgrades[currentHandgunUpgrade].attackDamage;
 }
 
+void SpawnHitPoint(Vector2 position)
+{
+    entity* hitPoint = createNewEntity(position, Vector2(4,4), Vector2(0.5,0.5),RED, DEFAULT, 0, 0, 0, 0, 0, 0, 0, 0, 0, RED, 0, 0, 0, 0, 0);
+    addEntity(hitPoint);
+    hitPoint->destroyTimer = -0.5f;
+}
+
 void SpawnDamageText(Vector2 position, int damage)
 {
     entity* damageText = createNewEntity(position, Vector2(0,0), Vector2(0, 0), RED, UI_DAMAGE_TEXT, 16.0f, 0, 0, 0, 0, damage, 0, 0, 0, RED, 0, 0, 0, NULL, 0);
@@ -990,6 +1024,8 @@ void SpawnEntites()
 {
     player = createNewEntity(Vector2(400, 200), Vector2(20, 20), Vector2(0.5f, 0.5f), VIOLET, PLAYER, 2.5f, 128, 2, 2.0f, 100, 10, 0.5f, 10.0f, 0.125f, RED, 0, 0, 0, NULL, 0);
     addEntity(player);
+    player->ammoCount = 7;
+    player->maxAmmoCount = 7;
     entity* upgrader = createNewEntity(Vector2(400,250), Vector2(32, 32), Vector2(0.5f, 0.5f), GOLD, UPGRADER, 0, 0, 0, 0, 0 ,0, 0, 0, 0, RED, 0, 0, 0, NULL, 0);
     addEntity(upgrader);
     SpawnUI();
