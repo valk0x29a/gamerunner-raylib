@@ -103,6 +103,7 @@ entity* inventorySecondSlot = NULL;
 //available weapons
 entity* sharpener;
 entity* shotgun;
+entity* sniperGun;
 
 // const int sharpenerUpgradeIndex = 3;
 int sharpenerPrice = 100;
@@ -110,6 +111,8 @@ bool isSharpenerUnlocked = false;
 // const int sharpenerUpgradeIndex = 3;
 int shotgunPrice = 100;
 bool isShotgunUnlocked = false;
+int sniperGunPrice = 0;
+bool isSniperGunUnlocked = false;
 
 int currentHandgunUpgrade = 0;
 int handgunUpgradesCount = 2;
@@ -153,6 +156,7 @@ char* GetItemName(int buyIndex)
     {
         case 0: return "Sharpener";
         case 1: return "Shotgun";
+        case 2: return "Sniper Gun";
     };
     return "Invalid Buy Index";
 }
@@ -928,6 +932,7 @@ int GetPrice(int buyIndex)
     {
         case 0: return sharpenerPrice;
         case 1: return shotgunPrice;
+        case 2: return sniperGunPrice;
     };
     return INT_MAX;
 }
@@ -938,6 +943,7 @@ bool* IsBought(int buyIndex)
     {
         case 0: return &isSharpenerUnlocked;
         case 1: return &isShotgunUnlocked;
+        case 2: return &isSniperGunUnlocked;
     };
     return NULL;
 }
@@ -948,6 +954,7 @@ entity* GetBuyItem(int buyIndex)
     {
         case 0: return sharpener;
         case 1: return shotgun;
+        case 2: return sniperGun;
     };
     return NULL;
 }
@@ -1180,6 +1187,14 @@ void SpawnEntites()
     shotgun->isAutomatic = false;
     shotgun->canBeEquipped = true;
     shotgun->buttonIndex = 1;
+    sniperGun = createNewEntity(Vector2(0,0), Vector2(0,0), Vector2(0,0), VIOLET, DEFAULT, 0, 0, 0, 0, 0, 20, 1.0f, 20.0f, 0, RED, 0, 0, 0, NULL, 0);
+    addEntity(sniperGun);
+    sniperGun->ammoCount = 4;
+    sniperGun->maxAmmoCount = 4;
+    sniperGun->reloadCooldown = 1.0f;
+    sniperGun->isAutomatic = false;
+    sniperGun->canBeEquipped = true;
+    sniperGun->buttonIndex = 2;
     inventorySecondSlot = NULL;
     entity* upgrader = createNewEntity(Vector2(400,250), Vector2(32, 32), Vector2(0.5f, 0.5f), GOLD, UPGRADER, 0, 0, 0, 0, 0 ,0, 0, 0, 0, RED, 0, 0, 0, NULL, 0);
     addEntity(upgrader);
@@ -1215,8 +1230,14 @@ void ReloadGame()
     currentHandgunUpgrade = 0;
     currentDashUpgrade = 0;
     currentMaxHealthUpgrade = 0;
-    isSharpenerUnlocked = false;
-    isShotgunUnlocked = false;
+    int index = 0;
+    bool* isUnlocked = IsBought(index);
+    while(isUnlocked != NULL)
+    {
+        *isUnlocked = false;
+        index++;
+        isUnlocked = IsBought(index);
+    }
     inventorySecondSlot = NULL;
     equippedWeapon = NULL;
     SpawnEntites();
