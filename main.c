@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <float.h>
 #include <stdio.h>
+#include <string.h>
 
 #define DEFAULT 0
 #define PLAYER 1 << 1
@@ -14,6 +15,7 @@
 #define UI_UPGRADER_BUTTON 1 << 6
 #define UI_UPGRADER_IMAGE 1 << 7
 #define UI_DAMAGE_TEXT 1 << 8
+#define UI_UPGRADER_BUY_BUTTON 1 << 9
 
 #define NEXT_WAVE_TIMER 5.0f
 
@@ -29,6 +31,7 @@ void SpawnHealthPickup(Vector2 position);
 void SetUpgrades();
 void SpawnDamageText(Vector2 position, int damage);
 void SpawnHitPoint(Vector2 position);
+void BuyOrEquipSharpener();
 
 typedef struct RayCastHitResult
 {
@@ -81,12 +84,13 @@ typedef struct entity
     bool isUI;
     void (*buttonCallback)(struct entity* thisButton);
     int cashDropAmount;
-    int upgradeUIButtonIndex;
+    int buttonIndex;
     float destroyTimer;
     int ammoCount;
     int maxAmmoCount;
     float reloadCooldown;
     bool isAutomatic;
+    bool canBeEquipped;
 } entity;
 
 int firstFreeIndex = 0;
@@ -95,7 +99,17 @@ entity** entities;
 
 entity* equippedWeapon;
 entity* handgun; // always at first slot
-entity* inventorySecondSlot;
+entity* inventorySecondSlot = NULL;
+//available weapons
+entity* sharpener;
+entity* shotgun;
+
+// const int sharpenerUpgradeIndex = 3;
+int sharpenerPrice = 100;
+bool isSharpenerUnlocked = false;
+// const int sharpenerUpgradeIndex = 3;
+int shotgunPrice = 100;
+bool isShotgunUnlocked = false;
 
 int currentHandgunUpgrade = 0;
 int handgunUpgradesCount = 2;
@@ -133,6 +147,16 @@ const char* GetUpgradeButtonText(int upgradeIndex)
     return "Invalid Upgrade Index";
 }
 
+char* GetItemName(int buyIndex)
+{
+    switch(buyIndex)
+    {
+        case 0: return "Sharpener";
+        case 1: return "Shotgun";
+    };
+    return "Invalid Buy Index";
+}
+
 int enemiesCount = 0;
 
 int currentWave = 0;
@@ -142,11 +166,6 @@ float nextWaveTimer = NEXT_WAVE_TIMER;
 int playerCash = 0;
 
 entity* player;
-
-entity* upgraderUIBackground;
-entity* handgunUpgradeButton;
-entity* dashUpgradeButton;
-entity* maxHealthUpgradeButton;
 
 int isUpgraderUIActive = false;
 
@@ -520,7 +539,7 @@ void UpdatePlayer()
             equippedWeapon = handgun;
             player->reloadCooldown = 0;
         }
-        if(IsKeyPressed(KEY_TWO))
+        if(IsKeyPressed(KEY_TWO) && inventorySecondSlot != NULL)
         {
             equippedWeapon = inventorySecondSlot;
             player->reloadCooldown = 0;
@@ -839,6 +858,7 @@ void DrawPlayerHUD()
     DrawText(TextFormat("Cash: %d", playerCash), 25, 25, 20, RED);
     const char* text = player->reloadCooldown > 0 ? "Reloading..." : TextFormat("Ammo: %d/%d", equippedWeapon->ammoCount, equippedWeapon->maxAmmoCount);
     DrawText(text, 675, 415, 20, RED);
+    DrawText(equippedWeapon == handgun ? "Handgun" : GetItemName(equippedWeapon->buttonIndex), 675, 390, 20, RED);
 }
 
 bool isMouseInside(entity* e)
@@ -890,7 +910,7 @@ int GetUpgradeCost(int upgradeIndex)
 
 void Upgrade(entity* thisButton)
 {
-    int upgradeIndex = thisButton->upgradeUIButtonIndex;
+    int upgradeIndex = thisButton->buttonIndex;
     thisButton->currentDamagedCooldown = thisButton->damagedCooldown;
     int* currentUpgrade = GetCurrentUpgrade(upgradeIndex);
     int upgradesCount = GetUpgradesCount(upgradeIndex);
@@ -899,6 +919,54 @@ void Upgrade(entity* thisButton)
         playerCash -= GetUpgradeCost(upgradeIndex);
         (*currentUpgrade)++;
         SetUpgrades();
+    }
+}
+
+int GetPrice(int buyIndex)
+{
+    switch(buyIndex)
+    {
+        case 0: return sharpenerPrice;
+        case 1: return shotgunPrice;
+    };
+    return INT_MAX;
+}
+
+bool* IsBought(int buyIndex)
+{
+    switch(buyIndex)
+    {
+        case 0: return &isSharpenerUnlocked;
+        case 1: return &isShotgunUnlocked;
+    };
+    return NULL;
+}
+
+entity* GetBuyItem(int buyIndex)
+{
+    switch(buyIndex)
+    {
+        case 0: return sharpener;
+        case 1: return shotgun;
+    };
+    return NULL;
+}
+
+void BuyOrEquip(entity* thisButton)
+{
+    int buyIndex = thisButton->buttonIndex;
+    thisButton->currentDamagedCooldown = thisButton->damagedCooldown;
+    bool* isBought = IsBought(buyIndex);
+    if(!(*isBought))
+    {
+        if(playerCash < GetPrice(buyIndex)) { return; }
+        playerCash -= GetPrice(buyIndex);
+        *isBought = true;
+    }
+    entity* item = GetBuyItem(buyIndex);
+    if(item->canBeEquipped)
+    {
+        inventorySecondSlot = item;
     }
 }
 
@@ -927,31 +995,67 @@ void DrawUpgraderUI()
             continue;
         }
 
-        int upgradeIndex = entities[i]->upgradeUIButtonIndex;
-        bool isUpgradeAvailable = GetUpgradeCost(upgradeIndex) <= playerCash;
+        if(entities[i]->entityType == UI_UPGRADER_BUTTON)
+        {
+            int upgradeIndex = entities[i]->buttonIndex;
+            bool isUpgradeAvailable = GetUpgradeCost(upgradeIndex) <= playerCash;
+            Color outputColor = entities[i]->damagedColor;
+            if(isUpgradeAvailable)
+            {
+                outputColor = entities[i]->currentDamagedCooldown > 0 ? entities[i]->damagedColor : entities[i]->defaultColor;
+            }
+
+            Vector2 buttonPos = entities[i]->position;
+            DrawRectangleV(buttonPos, entities[i]->size, outputColor);
+            DrawText(GetUpgradeButtonText(upgradeIndex), buttonPos.x + 12, buttonPos.y + 22, 20, RED);
+
+            int upgradeCost = GetUpgradeCost(upgradeIndex);
+            const char* detailsText = "Upgrade Maximazed";
+            if(upgradeCost < INT_MAX)
+            {
+                detailsText = TextFormat("Cash Required: %d", upgradeCost);
+            }
+
+            DrawText(detailsText, buttonPos.x + 24, buttonPos.y + 44, 12, RED);
+
+            if(isMouseInside(entities[i]) && IsMouseButtonDown(MOUSE_BUTTON_LEFT) && isUpgradeAvailable)
+            {
+                (*entities[i]->buttonCallback)(entities[i]);
+            }
+
+            if(entities[i]->currentDamagedCooldown > 0)
+            {
+                entities[i]->currentDamagedCooldown -= GetFrameTime();
+            }
+            continue;
+        }
+        int buyIndex = entities[i]->buttonIndex;
+        bool isBuyAvailable = GetPrice(buyIndex) <= playerCash || (*IsBought(buyIndex) && GetBuyItem(buyIndex)->canBeEquipped);
         Color outputColor = entities[i]->damagedColor;
-        if(isUpgradeAvailable)
+        if(isBuyAvailable)
         {
             outputColor = entities[i]->currentDamagedCooldown > 0 ? entities[i]->damagedColor : entities[i]->defaultColor;
         }
-
         Vector2 buttonPos = entities[i]->position;
         DrawRectangleV(buttonPos, entities[i]->size, outputColor);
-        DrawText(GetUpgradeButtonText(upgradeIndex), buttonPos.x + 12, buttonPos.y + 22, 20, RED);
 
-        int upgradeCost = GetUpgradeCost(upgradeIndex);
-        const char* detailsText;
-        if(upgradeCost < INT_MAX)
+        char* text = *IsBought(buyIndex) && GetBuyItem(buyIndex)->canBeEquipped ? "Equip " : "Buy";
+        DrawText(TextFormat("%s %s", text, GetItemName(buyIndex)), buttonPos.x + 12, buttonPos.y + 22, 20, RED);
+
+        int buyCost = GetPrice(buyIndex);
+        const char* detailsText = TextFormat("%s Accquired", GetItemName(buyIndex));
+        if(!(*IsBought(buyIndex) && GetBuyItem(buyIndex)->canBeEquipped)) // NAND = OR of Negatives
         {
-            detailsText = TextFormat("Cash Required: %d", GetUpgradeCost(upgradeIndex));
+            detailsText = TextFormat("Cash Required: %d", buyCost);
         }
-        else
+        if(GetBuyItem(buyIndex)->canBeEquipped && inventorySecondSlot == GetBuyItem(buyIndex))
         {
-            detailsText = "Upgrade Maximazed";
+            detailsText = TextFormat("%s Equipped", GetItemName(buyIndex));
         }
+
         DrawText(detailsText, buttonPos.x + 24, buttonPos.y + 44, 12, RED);
 
-        if(isMouseInside(entities[i]) && IsMouseButtonDown(MOUSE_BUTTON_LEFT) && isUpgradeAvailable)
+        if(isMouseInside(entities[i]) && IsMouseButtonDown(MOUSE_BUTTON_LEFT) && isBuyAvailable)
         {
             (*entities[i]->buttonCallback)(entities[i]);
         }
@@ -1016,25 +1120,36 @@ void SpawnHealthPickup(Vector2 position)
 
 void SpawnUI()
 {
-    upgraderUIBackground = createNewEntity(Vector2(0,0), Vector2(800, 450), Vector2(0,0), (Color){128, 128, 128, 128}, UI_UPGRADER_IMAGE, 0, 0, 0, 0, 0, 0, 0, 0, 0, RED, 0, 0, 0, NULL, 0);
+    entity* upgraderUIBackground = createNewEntity(Vector2(0,0), Vector2(800, 450), Vector2(0,0), (Color){128, 128, 128, 128}, UI_UPGRADER_IMAGE, 0, 0, 0, 0, 0, 0, 0, 0, 0, RED, 0, 0, 0, NULL, 0);
     addEntity(upgraderUIBackground);
-    handgunUpgradeButton = createNewEntity(Vector2(32, 64), Vector2(208,64), Vector2(0,0), WHITE, UI_UPGRADER_BUTTON, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, GRAY, 0, 0, 0, NULL, 0);
+    entity* handgunUpgradeButton = createNewEntity(Vector2(32, 64), Vector2(208,64), Vector2(0,0), WHITE, UI_UPGRADER_BUTTON, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, GRAY, 0, 0, 0, NULL, 0);
     addEntity(handgunUpgradeButton);
-    dashUpgradeButton = createNewEntity(Vector2(256, 64), Vector2(192,64), Vector2(0,0), WHITE, UI_UPGRADER_BUTTON, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, GRAY, 0, 0, 0, NULL, 0);
+    entity* dashUpgradeButton = createNewEntity(Vector2(256, 64), Vector2(192,64), Vector2(0,0), WHITE, UI_UPGRADER_BUTTON, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, GRAY, 0, 0, 0, NULL, 0);
     addEntity(dashUpgradeButton);
-    maxHealthUpgradeButton = createNewEntity(Vector2(480, 64), Vector2(224,64), Vector2(0,0), WHITE, UI_UPGRADER_BUTTON, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, GRAY, 0, 0, 0, NULL, 0);
+    entity* maxHealthUpgradeButton = createNewEntity(Vector2(480, 64), Vector2(224,64), Vector2(0,0), WHITE, UI_UPGRADER_BUTTON, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, GRAY, 0, 0, 0, NULL, 0);
     addEntity(maxHealthUpgradeButton);
+    entity* buySharpenerButton = createNewEntity(Vector2(32, 144), Vector2(208,64), Vector2(0,0), WHITE, UI_UPGRADER_BUY_BUTTON, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, GRAY, 0, 0, 0, NULL, 0);
+    addEntity(buySharpenerButton);
+    entity* buyShotgunButton = createNewEntity(Vector2(32, 224), Vector2(208,64), Vector2(0,0), WHITE, UI_UPGRADER_BUY_BUTTON, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, GRAY, 0, 0, 0, NULL, 0);
+    addEntity(buyShotgunButton);
 
     upgraderUIBackground->isUI = true;
     handgunUpgradeButton->isUI = true;
     handgunUpgradeButton->buttonCallback = Upgrade;
-    handgunUpgradeButton->upgradeUIButtonIndex = 0;
+    handgunUpgradeButton->buttonIndex = 0;
     dashUpgradeButton->isUI = true;
     dashUpgradeButton->buttonCallback = Upgrade;
-    dashUpgradeButton->upgradeUIButtonIndex = 1;
+    dashUpgradeButton->buttonIndex = 1;
     maxHealthUpgradeButton->isUI = true;
     maxHealthUpgradeButton->buttonCallback = Upgrade;
-    maxHealthUpgradeButton->upgradeUIButtonIndex = 2;
+    maxHealthUpgradeButton->buttonIndex = 2;
+    //Buy
+    buySharpenerButton->isUI = true;
+    buySharpenerButton->buttonCallback = BuyOrEquip;
+    buySharpenerButton->buttonIndex = 0;
+    buyShotgunButton->isUI = true;
+    buyShotgunButton->buttonCallback = BuyOrEquip;
+    buyShotgunButton->buttonIndex = 1;
 }
 
 void SpawnEntites()
@@ -1042,20 +1157,30 @@ void SpawnEntites()
     player = createNewEntity(Vector2(400, 200), Vector2(20, 20), Vector2(0.5f, 0.5f), VIOLET, PLAYER, 2.5f, 128, 2, 2.0f, 100, 0, 0, 0, 0.125f, RED, 0, 0, 0, NULL, 0);
     addEntity(player);
     player->reloadCooldown = 0;
-    handgun = createNewEntity(Vector2(0,0), Vector2(0,0), Vector2(0,0), VIOLET, DEFAULT, 0, 0, 0, 0, 0, 10, 0.5f, 10.0f, 0, RED, 0, 0, 0, NULL, 0);
+    handgun = createNewEntity(Vector2(0,0), Vector2(0,0), Vector2(0,0), VIOLET, DEFAULT, 0, 0, 0, 0, 0, 10, 0.1f, 10.0f, 0, RED, 0, 0, 0, NULL, 0);
     addEntity(handgun);
     handgun->ammoCount = 7;
     handgun->maxAmmoCount = 7;
-    handgun->reloadCooldown = 5.0f;
-    handgun->isAutomatic = false;
+    handgun->reloadCooldown = 1.0f;
+    handgun->isAutomatic = true;
     equippedWeapon = handgun;
-    entity* sharpener = createNewEntity(Vector2(0,0), Vector2(0,0), Vector2(0,0), VIOLET, DEFAULT, 0, 0, 0, 0, 0, 5, 0.25f, 10.0f, 0, RED, 0, 0, 0, NULL, 0);
+    sharpener = createNewEntity(Vector2(0,0), Vector2(0,0), Vector2(0,0), VIOLET, DEFAULT, 0, 0, 0, 0, 0, 5, 0.25f, 10.0f, 0, RED, 0, 0, 0, NULL, 0);
     addEntity(sharpener);
     sharpener->ammoCount = 30;
     sharpener->maxAmmoCount = 30;
     sharpener->reloadCooldown = 10.0f;
     sharpener->isAutomatic = true;
-    inventorySecondSlot = sharpener;
+    sharpener->canBeEquipped = true;
+    sharpener->buttonIndex = 0;
+    shotgun = createNewEntity(Vector2(0,0), Vector2(0,0), Vector2(0,0), VIOLET, DEFAULT, 0, 0, 0, 0, 0, 20, 1.0f, 10.0f, 0, RED, 0, 0, 0, NULL, 0);
+    addEntity(shotgun);
+    shotgun->ammoCount = 4;
+    shotgun->maxAmmoCount = 4;
+    shotgun->reloadCooldown = 10.0f;
+    shotgun->isAutomatic = false;
+    shotgun->canBeEquipped = true;
+    shotgun->buttonIndex = 1;
+    inventorySecondSlot = NULL;
     entity* upgrader = createNewEntity(Vector2(400,250), Vector2(32, 32), Vector2(0.5f, 0.5f), GOLD, UPGRADER, 0, 0, 0, 0, 0 ,0, 0, 0, 0, RED, 0, 0, 0, NULL, 0);
     addEntity(upgrader);
     SpawnUI();
@@ -1090,6 +1215,10 @@ void ReloadGame()
     currentHandgunUpgrade = 0;
     currentDashUpgrade = 0;
     currentMaxHealthUpgrade = 0;
+    isSharpenerUnlocked = false;
+    isShotgunUnlocked = false;
+    inventorySecondSlot = NULL;
+    equippedWeapon = NULL;
     SpawnEntites();
 }
 
