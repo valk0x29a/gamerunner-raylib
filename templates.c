@@ -54,7 +54,6 @@ typedef struct entity
     bool canBeEquipped;
     int count;
     struct entity* target;
-    struct entity* template;
     int templateIndex;
 } entity;
 
@@ -62,30 +61,7 @@ typedef struct entity
 void Upgrade(entity* thisButton);
 void BuyOrEquip(entity* thisButton);
 
-void SetStartPosition(entity* e, Vector2 position)
-{
-    e->position = position;
-    e->previousPosition = e->position;
-}
-
-void SetStartPositionAndSize(entity* e, Vector2 position, Vector2 size)
-{
-    e->position = position;
-    e->previousPosition = e->position;
-    e->size = size;
-}
-
 entity playerTemplate = { 0 };
-entity bigEnemyTemplate = { 0 };
-entity fastEnemyTemplate = { 0 };
-entity healthHitboxTemplate = { 0 };
-entity handgunTemplate = { 0 };
-entity sharpenerTemplate = { 0 };
-entity shotgunTemplate = { 0 };
-entity sniperGunTemplate = { 0 };
-entity upgradeButtonTemplate = { 0 };
-entity buyButtonTemplate = { 0 };
-
 
 entity GetBasicTemplate()
 {
@@ -108,7 +84,7 @@ entity GetPlayerTemplate()
     player.health = 100;
     player.damagedCooldown = 0.125f;
     player.damagedColor = RED;
-    player.template = &playerTemplate;
+    player.templateIndex = 1;
     return player;
 }
 
@@ -131,7 +107,7 @@ entity GetBigEnemyTemplate()
     bigEnemy.staminaRegenerationSpeed = 20.0f;
     bigEnemy.flipDelay = 2.0f;
     bigEnemy.cashDropAmount = 50;
-    bigEnemy.template = &bigEnemyTemplate;
+    bigEnemy.templateIndex = 2;
     return bigEnemy;
 }
 
@@ -154,7 +130,7 @@ entity GetFastEnemyTemplate()
     fastEnemy.staminaRegenerationSpeed = 100.0f;
     fastEnemy.flipDelay = 0.5f;
     fastEnemy.cashDropAmount = 25;
-    fastEnemy.template = &fastEnemyTemplate;
+    fastEnemy.templateIndex = 3;
     return fastEnemy;
 }
 
@@ -166,7 +142,7 @@ entity GetHealthHitboxTemplate()
     healthHitbox.entityType = HEALTH_HITBOX;
     healthHitbox.damagedCooldown = 0.125f;
     healthHitbox.damagedColor = RED;
-    healthHitbox.template = &healthHitboxTemplate;
+    healthHitbox.templateIndex = 4;
     return healthHitbox;
 }
 
@@ -179,7 +155,7 @@ entity GetHandgunTemplate()
     handgun.ammoCount = 7;
     handgun.reloadCooldown = 1.0f;
     handgun.isAutomatic = true;
-    handgun.template = &handgunTemplate;
+    handgun.templateIndex = 5;
     return handgun;
 }
 
@@ -194,7 +170,7 @@ entity GetSharpenerTemplate()
     sharpener.isAutomatic = true;
     sharpener.canBeEquipped = true;
     sharpener.buttonIndex = 0;
-    sharpener.template = &sharpenerTemplate;
+    sharpener.templateIndex = 6;
     return sharpener;
 }
 
@@ -209,7 +185,7 @@ entity GetShotgunTemplate()
     shotgun.isAutomatic = false;
     shotgun.canBeEquipped = true;
     shotgun.buttonIndex = 1;
-    shotgun.template = &shotgunTemplate;
+    shotgun.templateIndex = 7;
     return shotgun;
 }
 
@@ -224,7 +200,7 @@ entity GetSniperGunTemplate()
     sniperGun.isAutomatic = false;
     sniperGun.canBeEquipped = true;
     sniperGun.buttonIndex = 2;
-    sniperGun.template = &sniperGunTemplate;
+    sniperGun.templateIndex = 8;
     return sniperGun;
 }
 
@@ -275,7 +251,7 @@ entity GetUpgradeButtonTemplate()
     upgradeButton.damagedColor = GRAY;
     upgradeButton.isUI = true;
     upgradeButton.buttonCallback = Upgrade;
-    upgradeButton.template = &upgradeButtonTemplate;
+    upgradeButton.templateIndex = 9;
     return upgradeButton;
 }
 
@@ -288,7 +264,7 @@ entity GetBuyButtonTemplate()
     buyButton.damagedColor = GRAY;
     buyButton.isUI = true;
     buyButton.buttonCallback = BuyOrEquip;
-    buyButton.template = &buyButtonTemplate;
+    buyButton.templateIndex = 10;
     return buyButton;
 }
 
@@ -356,15 +332,6 @@ entity GetTemplate(int templateIndex)
 void InitializeTemplates()
 {
     playerTemplate = GetPlayerTemplate();
-    bigEnemyTemplate = GetBigEnemyTemplate();
-    fastEnemyTemplate = GetFastEnemyTemplate();
-    healthHitboxTemplate = GetHealthHitboxTemplate();
-    handgunTemplate = GetHandgunTemplate();
-    sharpenerTemplate = GetSharpenerTemplate();
-    shotgunTemplate = GetShotgunTemplate();
-    sniperGunTemplate = GetSniperGunTemplate();
-    upgradeButtonTemplate = GetUpgradeButtonTemplate();
-    buyButtonTemplate = GetBuyButtonTemplate();
 }
 
 

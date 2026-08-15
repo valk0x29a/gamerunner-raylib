@@ -14,6 +14,19 @@
 #define max(a, b) a > b ? a : b
 #include "templates.c"
 
+void SetStartPosition(entity* e, Vector2 position)
+{
+    e->position = position;
+    e->previousPosition = e->position;
+}
+
+void SetStartPositionAndSize(entity* e, Vector2 position, Vector2 size)
+{
+    e->position = position;
+    e->previousPosition = e->position;
+    e->size = size;
+}
+
 void ReloadGame();
 void EndWave();
 void SpawnEnemies();
@@ -396,13 +409,13 @@ void UpdatePlayerMovement()
             free(result.hitPositions);
         }
 
-        if(player->numberOfDashes < player->template->numberOfDashes)
+        if(player->numberOfDashes < GetTemplate(player->templateIndex).numberOfDashes)
         {
             player->dashCooldown -= GetFrameTime();
             if(player->dashCooldown <= 0)
             {
                 player->numberOfDashes++;
-                player->dashCooldown = player->template->dashCooldown;
+                player->dashCooldown = GetTemplate(player->templateIndex).dashCooldown;
             }
         }
         player->previousPosition = player->position;
@@ -430,7 +443,7 @@ void UpdatePlayerAttack()
             player->reloadCooldown -= GetFrameTime();
             if(player->reloadCooldown <= 0)
             {
-                equippedWeapon->ammoCount = equippedWeapon->template->ammoCount;
+                equippedWeapon->ammoCount = GetTemplate(equippedWeapon->templateIndex).ammoCount;
             }
         }
 
@@ -471,7 +484,7 @@ void UpdatePlayerAttack()
                 entity* e = entities[entityIndex];
                 if(entities[entityIndex]->entityType == HEALTH_HITBOX)
                 {
-                    entities[entityIndex]->damagedCooldown = entities[entityIndex]->template->damagedCooldown;
+                    entities[entityIndex]->damagedCooldown = GetTemplate(entities[entityIndex]->templateIndex).damagedCooldown;
                     e = entities[entityIndex]->parent;
                 }
                 float x = result.hitPosition.x;
@@ -479,7 +492,7 @@ void UpdatePlayerAttack()
                 bool isHittingFront = e->isFlipped ? x < e->position.x + e->size.x - marginOfError : x > e->position.x + marginOfError;
                 float attackMultiplier = isHittingFront ? 0.5f : 1.0f;
                 e->health -= equippedWeapon->attackDamage * attackMultiplier;
-                e->damagedCooldown = e->template->damagedCooldown;
+                e->damagedCooldown = GetTemplate(e->templateIndex).damagedCooldown;
                 if(e->health <= 0)
                 {
                     // printf("%d\n", entities[entityIndex]->entityType);
@@ -633,7 +646,7 @@ void UpdateEnemiesMovement()
         else
         {
             entities[i]->stamina += GetFrameTime() * entities[i]->staminaRegenerationSpeed;
-            if(entities[i]->stamina > entities[i]->template->stamina)
+            if(entities[i]->stamina > GetTemplate(entities[i]->templateIndex).stamina)
             {
                 entities[i]->isRegenerating = false;
             }
@@ -677,18 +690,18 @@ void UpdateEnemiesAttack()
             else
             {
                 player->health -= entities[i]->attackDamage;
-                player->damagedCooldown = player->template->damagedCooldown;
+                player->damagedCooldown = GetTemplate(player->templateIndex).damagedCooldown;
                 //printf("Health: %d ", player->health);
                 if(player->health <= 0)
                 {
                     ReloadGame();
                 }
-                entities[i]->attackCooldown = entities[i]->template->attackCooldown;
+                entities[i]->attackCooldown = GetTemplate(entities[i]->templateIndex).attackCooldown;
             }
         }
         else
         {
-            entities[i]->attackCooldown = entities[i]->template->attackCooldown;
+            entities[i]->attackCooldown = GetTemplate(entities[i]->templateIndex).attackCooldown;
         }
     }
 }
@@ -720,12 +733,12 @@ void UpdateHealthPickups()
         float dist = getSqrDistance(entities[i]->position, player->position);
         if(dist < 72.0f)
         {
-            if(player->health < player->template->health)
+            if(player->health < GetTemplate(player->templateIndex).health)
             {
                 player->health += 10.0f;
-                if(player->health > player->template->health)
+                if(player->health > GetTemplate(player->templateIndex).health)
                 {
-                    player->health = player->template->health;
+                    player->health = GetTemplate(player->templateIndex).health;
                 }
                 removeEntity(i);
             }
@@ -830,7 +843,7 @@ void DrawPlayerHUD()
     DrawText(TextFormat("Number of Dashes: %d", player->numberOfDashes), 300, 400, 20, RED);
     DrawText(TextFormat("Player Health: %d", player->health), 25, 415, 20, RED);
     DrawText(TextFormat("Cash: %d", playerCash), 25, 25, 20, RED);
-    const char* text = player->reloadCooldown > 0 ? "Reloading..." : TextFormat("Ammo: %d/%d", equippedWeapon->ammoCount, equippedWeapon->template->ammoCount);
+    const char* text = player->reloadCooldown > 0 ? "Reloading..." : TextFormat("Ammo: %d/%d", equippedWeapon->ammoCount, GetTemplate(equippedWeapon->templateIndex).ammoCount);
     DrawText(text, 675, 415, 20, RED);
     DrawText(equippedWeapon == handgun ? "Handgun" : GetItemName(equippedWeapon->buttonIndex), 675, 390, 20, RED);
     if(equippedGrenade == NULL) { return; }
@@ -888,7 +901,7 @@ int GetUpgradeCost(int upgradeIndex)
 void Upgrade(entity* thisButton)
 {
     int upgradeIndex = thisButton->buttonIndex;
-    thisButton->damagedCooldown = thisButton->template->damagedCooldown;
+    thisButton->damagedCooldown = GetTemplate(thisButton->templateIndex).damagedCooldown;
     int* currentUpgrade = GetCurrentUpgrade(upgradeIndex);
     int upgradesCount = GetUpgradesCount(upgradeIndex);
     if(*currentUpgrade < upgradesCount-1)
@@ -942,9 +955,7 @@ void BuyOrEquip(entity* thisButton)
 {
     int buyIndex = thisButton->buttonIndex;
 
-    // thisButton->damagedCooldown = GetTemplate(thisButton->templateIndex).damagedCooldown;
-
-    thisButton->damagedCooldown = thisButton->template->damagedCooldown;
+    thisButton->damagedCooldown = GetTemplate(thisButton->templateIndex).damagedCooldown;
 
     bool* isBought = IsBought(buyIndex);
     if(isBought != NULL)
@@ -1096,11 +1107,11 @@ void PrepareUpgrades()
 
 void SetUpgrades()
 {
-    player->template->dashCooldown = dashUpgrades[currentDashUpgrade].dashCooldown;
-    player->template->numberOfDashes = dashUpgrades[currentDashUpgrade].numberOfDashes;
-    player->template->health = maxHealthUpgrades[currentMaxHealthUpgrade];
-    player->template->attackCooldown = handgunUpgrades[currentHandgunUpgrade].attackCooldown;
-    player->template->attackDamage = handgunUpgrades[currentHandgunUpgrade].attackDamage;
+    playerTemplate.dashCooldown = dashUpgrades[currentDashUpgrade].dashCooldown;
+    playerTemplate.numberOfDashes = dashUpgrades[currentDashUpgrade].numberOfDashes;
+    playerTemplate.health = maxHealthUpgrades[currentMaxHealthUpgrade];
+    playerTemplate.attackCooldown = handgunUpgrades[currentHandgunUpgrade].attackCooldown;
+    playerTemplate.attackDamage = handgunUpgrades[currentHandgunUpgrade].attackDamage;
 }
 
 void SpawnHitPoint(Vector2 position)
