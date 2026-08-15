@@ -39,7 +39,6 @@ typedef struct entity
     float staminaRegenerationSpeed;
     struct entity* parent;
     struct entity* child;
-    float flipDelay;
     float flipTimer;
     bool isFlipped;
     bool isEnabled;
@@ -105,7 +104,7 @@ entity GetBigEnemyTemplate()
     bigEnemy.fovRange = 350.0f;
     bigEnemy.stamina = 100.0f;
     bigEnemy.staminaRegenerationSpeed = 20.0f;
-    bigEnemy.flipDelay = 2.0f;
+    bigEnemy.flipTimer = 2.0f;
     bigEnemy.cashDropAmount = 50;
     bigEnemy.templateIndex = 2;
     return bigEnemy;
@@ -128,7 +127,7 @@ entity GetFastEnemyTemplate()
     fastEnemy.fovRange = 650.0f;
     fastEnemy.stamina = 500.0f;
     fastEnemy.staminaRegenerationSpeed = 100.0f;
-    fastEnemy.flipDelay = 0.5f;
+    fastEnemy.flipTimer = 0.5f;
     fastEnemy.cashDropAmount = 25;
     fastEnemy.templateIndex = 3;
     return fastEnemy;

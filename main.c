@@ -599,7 +599,7 @@ void UpdateEnemiesMovement()
                         entities[i]->flipTimer -= GetFrameTime();
                         if(entities[i]->flipTimer < 0)
                         {
-                            entities[i]->flipTimer = entities[i]->flipDelay;
+                            entities[i]->flipTimer = GetTemplate(entities[i]->templateIndex).flipTimer;
                             entities[i]->isFlipped = !entities[i]->isFlipped;
                             entities[i]->stamina -= 10.0f;
                         }
@@ -607,7 +607,7 @@ void UpdateEnemiesMovement()
                     else
                     {
                         entities[i]->position.x += min(speed, fabsf(enemyPos.x - playerPos.x));
-                        entities[i]->flipTimer = entities[i]->flipDelay;
+                        entities[i]->flipTimer = GetTemplate(entities[i]->templateIndex).flipTimer;
                     }
                 }
                 if(enemyPos.x > playerPos.x)
@@ -617,7 +617,7 @@ void UpdateEnemiesMovement()
                         entities[i]->flipTimer -= GetFrameTime();
                         if(entities[i]->flipTimer < 0)
                         {
-                            entities[i]->flipTimer = entities[i]->flipDelay;
+                            entities[i]->flipTimer = GetTemplate(entities[i]->templateIndex).flipTimer;
                             entities[i]->isFlipped = !entities[i]->isFlipped;
                             entities[i]->stamina -= 10.0f;
                         }
@@ -625,7 +625,7 @@ void UpdateEnemiesMovement()
                     else
                     {
                         entities[i]->position.x -= min(speed, fabsf(enemyPos.x - playerPos.x));
-                        entities[i]->flipTimer = entities[i]->flipDelay;
+                        entities[i]->flipTimer = GetTemplate(entities[i]->templateIndex).flipTimer;
                     }
                 }
                 if(enemyPos.y < playerPos.y)
