@@ -396,13 +396,13 @@ void UpdatePlayerMovement()
             free(result.hitPositions);
         }
 
-        if(player->numberOfDashes < GetPlayerTemplate().numberOfDashes)
+        if(player->numberOfDashes < player->template->dashCooldown)
         {
             player->dashCooldown -= GetFrameTime();
             if(player->dashCooldown <= 0)
             {
                 player->numberOfDashes++;
-                player->dashCooldown = GetPlayerTemplate().dashCooldown;
+                player->dashCooldown = player->template->dashCooldown;
             }
         }
         player->previousPosition = player->position;
