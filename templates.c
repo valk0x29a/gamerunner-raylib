@@ -55,6 +55,7 @@ typedef struct entity
     int count;
     struct entity* target;
     struct entity* template;
+    int templateIndex;
 } entity;
 
 
@@ -332,6 +333,25 @@ entity GetPlacedDecoyTemplate()
     newEntity.destroyTimer = -10.0f;
     return newEntity;
 }
+
+entity GetTemplate(int templateIndex)
+{
+    switch(templateIndex)
+    {
+        case 0: return GetBasicTemplate();
+        case 1: return playerTemplate;
+        case 2: return GetBigEnemyTemplate();
+        case 3: return GetFastEnemyTemplate();
+        case 4: return GetHealthHitboxTemplate();
+        case 5: return GetHandgunTemplate();
+        case 6: return GetSharpenerTemplate();
+        case 7: return GetShotgunTemplate();
+        case 8: return GetSniperGunTemplate();
+        case 9: return GetUpgradeButtonTemplate();
+        case 10: return GetBuyButtonTemplate();
+        default: return GetBasicTemplate();
+    }
+};
 
 void InitializeTemplates()
 {

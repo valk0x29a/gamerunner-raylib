@@ -941,7 +941,11 @@ entity* GetBuyItem(int buyIndex)
 void BuyOrEquip(entity* thisButton)
 {
     int buyIndex = thisButton->buttonIndex;
+
+    // thisButton->damagedCooldown = GetTemplate(thisButton->templateIndex).damagedCooldown;
+
     thisButton->damagedCooldown = thisButton->template->damagedCooldown;
+
     bool* isBought = IsBought(buyIndex);
     if(isBought != NULL)
     {
