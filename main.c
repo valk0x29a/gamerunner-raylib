@@ -6,24 +6,13 @@
 #include <stdio.h>
 #include <string.h>
 
-#define DEFAULT 0
-#define PLAYER 1 << 1
-#define UPGRADER 1 << 2
-#define ENEMY 1 << 3
-#define HEALTH_HITBOX 1 << 4
-#define HEALTH_PICKUP 1 << 5
-#define UI_UPGRADER_BUTTON 1 << 6
-#define UI_UPGRADER_IMAGE 1 << 7
-#define UI_DAMAGE_TEXT 1 << 8
-#define UI_UPGRADER_BUY_BUTTON 1 << 9
-#define DECOY 1 << 10
-
 #define NEXT_WAVE_TIMER 5.0f
 
 #define Vector2(x,y) (Vector2){x, y}
 
 #define min(a, b) a > b ? b : a
 #define max(a, b) a > b ? a : b
+#include "templates.c"
 
 void ReloadGame();
 void EndWave();
@@ -47,54 +36,6 @@ typedef struct RayCastAllHitsResult
     Vector2* hitPositions;
     int* entityIndexes;
 } RayCastAllHitsResult;
-
-typedef struct entity
-{
-    Vector2 position;
-    Vector2 size;
-    Vector2 pivot;
-    Vector2 previousPosition;
-    Color defaultColor;
-    uint entityType;
-    float speed;
-    int dashDistance;
-    int maxNumberOfDashes;
-    int numberOfDashes;
-    float dashCooldown;
-    float currentDashCooldown;
-    int health;
-    int maxHealth;
-    int attackDamage;
-    float attackCooldown;
-    float currentAttackCooldown;
-    float attackRange;
-    float damagedCooldown;
-    float currentDamagedCooldown;
-    Color damagedColor;
-    float fovRange;
-    float maxStamina;
-    float stamina;
-    bool isRegenerating;
-    float staminaRegenerationSpeed;
-    struct entity* parent;
-    struct entity* child;
-    float flipDelay;
-    float flipTimer;
-    bool isFlipped;
-    bool isEnabled;
-    bool isUI;
-    void (*buttonCallback)(struct entity* thisButton);
-    int cashDropAmount;
-    int buttonIndex;
-    float destroyTimer;
-    int ammoCount;
-    int maxAmmoCount;
-    float reloadCooldown;
-    bool isAutomatic;
-    bool canBeEquipped;
-    int count;
-    struct entity* target;
-} entity;
 
 int firstFreeIndex = 0;
 int capacity = 4;
@@ -244,45 +185,11 @@ void removeEntity(int entityIndex)
     firstFreeIndex--;
 }
 
-entity* createNewEntity(Vector2 pos, Vector2 size, Vector2 pivot, Color defaultColor, uint entityType, float speed, int dashDistance, int maxNumberOfDashes, float dashCooldown, int maxHealth, int attackDamage, float attackCooldown, float attackRange, float damagedCooldown, Color damagedColor, float fovRange, float maxStamina, float staminaRegenerationSpeed, entity* parent, float flipDelay)
-{
-    entity* newEntity = calloc(1, sizeof(entity));
-    newEntity->position = pos;
-    newEntity->size = size;
-    newEntity->pivot = pivot;
-    newEntity->previousPosition = pos;
-    newEntity->defaultColor = defaultColor;
-    newEntity->entityType = entityType;
-    newEntity->speed = speed;
-    newEntity->dashDistance = dashDistance;
-    newEntity->maxNumberOfDashes = maxNumberOfDashes;
-    newEntity->numberOfDashes = maxNumberOfDashes;
-    newEntity->dashCooldown = dashCooldown;
-    newEntity->currentDashCooldown = dashCooldown;
-    newEntity->maxHealth = maxHealth;
-    newEntity->health = maxHealth;
-    newEntity->attackDamage = attackDamage;
-    newEntity->attackCooldown = attackCooldown;
-    newEntity->currentAttackCooldown = attackCooldown;
-    newEntity->attackRange = attackRange;
-    newEntity->damagedCooldown = damagedCooldown;
-    newEntity->damagedColor = damagedColor;
-    newEntity->fovRange = fovRange;
-    newEntity->maxStamina = maxStamina;
-    newEntity->stamina = maxStamina;
-    newEntity->staminaRegenerationSpeed = staminaRegenerationSpeed;
-    newEntity->parent = parent;
-    newEntity->flipDelay = flipDelay;
-    newEntity->flipTimer = flipDelay;
-    newEntity->isEnabled = true;
-    return newEntity;
-}
-
-entity* allocNewEntity(entity copiedEntity)
+entity* allocAndAddEntity(entity copiedEntity)
 {
     entity* newEntity = calloc(1, sizeof(entity));
     *newEntity = copiedEntity;
-    newEntity->isEnabled = true;
+    addEntity(newEntity);
     return newEntity;
 }
 
@@ -489,13 +396,13 @@ void UpdatePlayerMovement()
             free(result.hitPositions);
         }
 
-        if(player->numberOfDashes < player->maxNumberOfDashes)
+        if(player->numberOfDashes < GetPlayerTemplate().numberOfDashes)
         {
-            player->currentDashCooldown -= GetFrameTime();
-            if(player->currentDashCooldown <= 0)
+            player->dashCooldown -= GetFrameTime();
+            if(player->dashCooldown <= 0)
             {
                 player->numberOfDashes++;
-                player->currentDashCooldown = player->dashCooldown;
+                player->dashCooldown = GetPlayerTemplate().dashCooldown;
             }
         }
         player->previousPosition = player->position;
@@ -523,7 +430,7 @@ void UpdatePlayerAttack()
             player->reloadCooldown -= GetFrameTime();
             if(player->reloadCooldown <= 0)
             {
-                equippedWeapon->ammoCount = equippedWeapon->maxAmmoCount;
+                equippedWeapon->ammoCount = equippedWeapon->template->ammoCount;
             }
         }
 
@@ -564,7 +471,7 @@ void UpdatePlayerAttack()
                 entity* e = entities[entityIndex];
                 if(entities[entityIndex]->entityType == HEALTH_HITBOX)
                 {
-                    entities[entityIndex]->currentDamagedCooldown = entities[entityIndex]->damagedCooldown;
+                    entities[entityIndex]->damagedCooldown = entities[entityIndex]->template->damagedCooldown;
                     e = entities[entityIndex]->parent;
                 }
                 float x = result.hitPosition.x;
@@ -572,7 +479,7 @@ void UpdatePlayerAttack()
                 bool isHittingFront = e->isFlipped ? x < e->position.x + e->size.x - marginOfError : x > e->position.x + marginOfError;
                 float attackMultiplier = isHittingFront ? 0.5f : 1.0f;
                 e->health -= equippedWeapon->attackDamage * attackMultiplier;
-                e->currentDamagedCooldown = e->damagedCooldown;
+                e->damagedCooldown = e->template->damagedCooldown;
                 if(e->health <= 0)
                 {
                     // printf("%d\n", entities[entityIndex]->entityType);
@@ -596,9 +503,9 @@ void UpdatePlayerAttack()
         {
             if(equippedGrenade == decoy)
             {
-                entity* placedDecoy = createNewEntity(GetMousePosition(), Vector2(16,16), Vector2(0.5f, 0.5f), GRAY, DECOY, 0, 0, 0, 0, 0, 0, 0, 0, 0, RED, 0, 0, 0, NULL, 0);
-                addEntity(placedDecoy);
-                placedDecoy->destroyTimer = -10.0f;
+                entity placedDecoy = GetPlacedDecoyTemplate();
+                placedDecoy.position = GetMousePosition();
+                allocAndAddEntity(placedDecoy);
             }
             else
             {
@@ -622,9 +529,9 @@ void UpdatePlayerAttack()
             equippedGrenade->count--;
         }
 
-        if(player->currentDamagedCooldown > 0)
+        if(player->damagedCooldown > 0)
         {
-            player->currentDamagedCooldown -= GetFrameTime();
+            player->damagedCooldown -= GetFrameTime();
         }
     }
 }
@@ -726,7 +633,7 @@ void UpdateEnemiesMovement()
         else
         {
             entities[i]->stamina += GetFrameTime() * entities[i]->staminaRegenerationSpeed;
-            if(entities[i]->stamina > entities[i]->maxStamina)
+            if(entities[i]->stamina > entities[i]->template->stamina)
             {
                 entities[i]->isRegenerating = false;
             }
@@ -737,6 +644,7 @@ void UpdateEnemiesMovement()
             entities[i]->position = entities[i]->previousPosition;
         }
         // printf("%f\n", entities[i]->stamina);
+        // printf("%f\n", entities[i]->template->stamina);
         entities[i]->stamina -= getSqrDistance(entities[i]->position, entities[i]->previousPosition) * 0.1f;
         if(entities[i]->stamina < 0)
         {
@@ -752,9 +660,9 @@ void UpdateEnemiesAttack()
     for(int i = 0; i < firstFreeIndex; i++)
     {
         if(entities[i]->entityType != ENEMY) { continue; }
-        if(entities[i]->currentDamagedCooldown > 0)
+        if(entities[i]->damagedCooldown > 0)
         {
-            entities[i]->currentDamagedCooldown -= GetFrameTime();
+            entities[i]->damagedCooldown -= GetFrameTime();
         }
 
         if(entities[i]->target == NULL || entities[i]->isRegenerating) { continue; }
@@ -762,25 +670,25 @@ void UpdateEnemiesAttack()
         entity* player = entities[i]->target;
         if(getSqrDistance(player->position, entities[i]->position) <= entities[i]->attackRange*entities[i]->attackRange)
         {
-            if(entities[i]->currentAttackCooldown > 0)
+            if(entities[i]->attackCooldown > 0)
             {
-                entities[i]->currentAttackCooldown -= GetFrameTime();
+                entities[i]->attackCooldown -= GetFrameTime();
             }
             else
             {
                 player->health -= entities[i]->attackDamage;
-                player->currentDamagedCooldown = player->damagedCooldown;
+                player->damagedCooldown = player->template->damagedCooldown;
                 //printf("Health: %d ", player->health);
                 if(player->health <= 0)
                 {
                     ReloadGame();
                 }
-                entities[i]->currentAttackCooldown = entities[i]->attackCooldown;
+                entities[i]->attackCooldown = entities[i]->template->attackCooldown;
             }
         }
         else
         {
-            entities[i]->currentAttackCooldown = entities[i]->attackCooldown;
+            entities[i]->attackCooldown = entities[i]->template->attackCooldown;
         }
     }
 }
@@ -797,9 +705,9 @@ void UpdateHealthHitBoxes()
             offset.x = -offset.x;
         }
         entities[i]->position = Vector2Add(entities[i]->parent->position, offset);
-        if(entities[i]->currentDamagedCooldown > 0)
+        if(entities[i]->damagedCooldown > 0)
         {
-            entities[i]->currentDamagedCooldown -= GetFrameTime();
+            entities[i]->damagedCooldown -= GetFrameTime();
         }
     }
 }
@@ -812,12 +720,12 @@ void UpdateHealthPickups()
         float dist = getSqrDistance(entities[i]->position, player->position);
         if(dist < 72.0f)
         {
-            if(player->health < player->maxHealth)
+            if(player->health < player->template->health)
             {
                 player->health += 10.0f;
-                if(player->health > player->maxHealth)
+                if(player->health > player->template->health)
                 {
-                    player->health = player->maxHealth;
+                    player->health = player->template->health;
                 }
                 removeEntity(i);
             }
@@ -922,7 +830,7 @@ void DrawPlayerHUD()
     DrawText(TextFormat("Number of Dashes: %d", player->numberOfDashes), 300, 400, 20, RED);
     DrawText(TextFormat("Player Health: %d", player->health), 25, 415, 20, RED);
     DrawText(TextFormat("Cash: %d", playerCash), 25, 25, 20, RED);
-    const char* text = player->reloadCooldown > 0 ? "Reloading..." : TextFormat("Ammo: %d/%d", equippedWeapon->ammoCount, equippedWeapon->maxAmmoCount);
+    const char* text = player->reloadCooldown > 0 ? "Reloading..." : TextFormat("Ammo: %d/%d", equippedWeapon->ammoCount, equippedWeapon->template->ammoCount);
     DrawText(text, 675, 415, 20, RED);
     DrawText(equippedWeapon == handgun ? "Handgun" : GetItemName(equippedWeapon->buttonIndex), 675, 390, 20, RED);
     if(equippedGrenade == NULL) { return; }
@@ -980,7 +888,7 @@ int GetUpgradeCost(int upgradeIndex)
 void Upgrade(entity* thisButton)
 {
     int upgradeIndex = thisButton->buttonIndex;
-    thisButton->currentDamagedCooldown = thisButton->damagedCooldown;
+    thisButton->damagedCooldown = thisButton->template->damagedCooldown;
     int* currentUpgrade = GetCurrentUpgrade(upgradeIndex);
     int upgradesCount = GetUpgradesCount(upgradeIndex);
     if(*currentUpgrade < upgradesCount-1)
@@ -1033,7 +941,7 @@ entity* GetBuyItem(int buyIndex)
 void BuyOrEquip(entity* thisButton)
 {
     int buyIndex = thisButton->buttonIndex;
-    thisButton->currentDamagedCooldown = thisButton->damagedCooldown;
+    thisButton->damagedCooldown = thisButton->template->damagedCooldown;
     bool* isBought = IsBought(buyIndex);
     if(isBought != NULL)
     {
@@ -1096,7 +1004,7 @@ void DrawUpgraderUI()
             Color outputColor = entities[i]->damagedColor;
             if(isUpgradeAvailable)
             {
-                outputColor = entities[i]->currentDamagedCooldown > 0 ? entities[i]->damagedColor : entities[i]->defaultColor;
+                outputColor = entities[i]->damagedCooldown > 0 ? entities[i]->damagedColor : entities[i]->defaultColor;
             }
 
             Vector2 buttonPos = entities[i]->position;
@@ -1117,9 +1025,9 @@ void DrawUpgraderUI()
                 (*entities[i]->buttonCallback)(entities[i]);
             }
 
-            if(entities[i]->currentDamagedCooldown > 0)
+            if(entities[i]->damagedCooldown > 0)
             {
-                entities[i]->currentDamagedCooldown -= GetFrameTime();
+                entities[i]->damagedCooldown -= GetFrameTime();
             }
             continue;
         }
@@ -1128,7 +1036,7 @@ void DrawUpgraderUI()
         Color outputColor = entities[i]->damagedColor;
         if(isBuyAvailable)
         {
-            outputColor = entities[i]->currentDamagedCooldown > 0 ? entities[i]->damagedColor : entities[i]->defaultColor;
+            outputColor = entities[i]->damagedCooldown > 0 ? entities[i]->damagedColor : entities[i]->defaultColor;
         }
         Vector2 buttonPos = entities[i]->position;
         DrawRectangleV(buttonPos, entities[i]->size, outputColor);
@@ -1154,9 +1062,9 @@ void DrawUpgraderUI()
             (*entities[i]->buttonCallback)(entities[i]);
         }
 
-        if(entities[i]->currentDamagedCooldown > 0)
+        if(entities[i]->damagedCooldown > 0)
         {
-            entities[i]->currentDamagedCooldown -= GetFrameTime();
+            entities[i]->damagedCooldown -= GetFrameTime();
         }
     }
 }
@@ -1184,154 +1092,116 @@ void PrepareUpgrades()
 
 void SetUpgrades()
 {
-    player->dashCooldown = dashUpgrades[currentDashUpgrade].dashCooldown;
-    player->maxNumberOfDashes = dashUpgrades[currentDashUpgrade].numberOfDashes;
-    player->maxHealth = maxHealthUpgrades[currentMaxHealthUpgrade];
-    player->attackCooldown = handgunUpgrades[currentHandgunUpgrade].attackCooldown;
-    player->attackDamage = handgunUpgrades[currentHandgunUpgrade].attackDamage;
+    player->template->dashCooldown = dashUpgrades[currentDashUpgrade].dashCooldown;
+    player->template->numberOfDashes = dashUpgrades[currentDashUpgrade].numberOfDashes;
+    player->template->health = maxHealthUpgrades[currentMaxHealthUpgrade];
+    player->template->attackCooldown = handgunUpgrades[currentHandgunUpgrade].attackCooldown;
+    player->template->attackDamage = handgunUpgrades[currentHandgunUpgrade].attackDamage;
 }
 
 void SpawnHitPoint(Vector2 position)
 {
-    entity* hitPoint = createNewEntity(position, Vector2(4,4), Vector2(0.5,0.5),RED, DEFAULT, 0, 0, 0, 0, 0, 0, 0, 0, 0, RED, 0, 0, 0, 0, 0);
-    addEntity(hitPoint);
-    hitPoint->destroyTimer = -0.5f;
+    entity hitPoint = GetHitPointTemplate();
+    SetStartPosition(&hitPoint, position);
+    allocAndAddEntity(hitPoint);
 }
 
 void SpawnDamageText(Vector2 position, int damage)
 {
-    entity* damageText = createNewEntity(position, Vector2(0,0), Vector2(0, 0), RED, UI_DAMAGE_TEXT, 16.0f, 0, 0, 0, 0, damage, 0, 0, 0, RED, 0, 0, 0, NULL, 0);
-    addEntity(damageText);
-    damageText->destroyTimer = -1.0f;
-    damageText->isUI = true;
+    entity damageText = GetDamageTextTemplate();
+    SetStartPosition(&damageText, position);
+    damageText.attackDamage = damage;
+    allocAndAddEntity(damageText);
 }
 
 void SpawnHealthPickup(Vector2 position)
 {
-    entity* health_pickup = createNewEntity(position, Vector2(8,8), Vector2(0.5f, 0.5f), BLUE, HEALTH_PICKUP, 0, 0, 0, 0, 0, 0, 0, 0, 0, RED, 0, 0, 0, NULL, 0);
-    addEntity(health_pickup);
+    entity healthPickup = GetHealthPickupTemplate();
+    SetStartPosition(&healthPickup, position);
+    allocAndAddEntity(healthPickup);
 }
 
-void SpawnUI()
+void NewSpawnUI()
 {
-    entity* upgraderUIBackground = createNewEntity(Vector2(0,0), Vector2(800, 450), Vector2(0,0), (Color){128, 128, 128, 128}, UI_UPGRADER_IMAGE, 0, 0, 0, 0, 0, 0, 0, 0, 0, RED, 0, 0, 0, NULL, 0);
-    addEntity(upgraderUIBackground);
-    entity* handgunUpgradeButton = createNewEntity(Vector2(32, 64), Vector2(208,64), Vector2(0,0), WHITE, UI_UPGRADER_BUTTON, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, GRAY, 0, 0, 0, NULL, 0);
-    addEntity(handgunUpgradeButton);
-    entity* dashUpgradeButton = createNewEntity(Vector2(256, 64), Vector2(192,64), Vector2(0,0), WHITE, UI_UPGRADER_BUTTON, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, GRAY, 0, 0, 0, NULL, 0);
-    addEntity(dashUpgradeButton);
-    entity* maxHealthUpgradeButton = createNewEntity(Vector2(480, 64), Vector2(224,64), Vector2(0,0), WHITE, UI_UPGRADER_BUTTON, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, GRAY, 0, 0, 0, NULL, 0);
-    addEntity(maxHealthUpgradeButton);
-    entity* buySharpenerButton = createNewEntity(Vector2(32, 144), Vector2(208,64), Vector2(0,0), WHITE, UI_UPGRADER_BUY_BUTTON, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, GRAY, 0, 0, 0, NULL, 0);
-    addEntity(buySharpenerButton);
-    entity* buyShotgunButton = createNewEntity(Vector2(32, 224), Vector2(208,64), Vector2(0,0), WHITE, UI_UPGRADER_BUY_BUTTON, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, GRAY, 0, 0, 0, NULL, 0);
-    addEntity(buyShotgunButton);
-    entity* buyDecoy = createNewEntity(Vector2(256, 144), Vector2(208,64), Vector2(0,0), WHITE, UI_UPGRADER_BUY_BUTTON, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, GRAY, 0, 0, 0, NULL, 0);
-    addEntity(buyDecoy);
-    entity* buyFreezingGrenade = createNewEntity(Vector2(256, 224), Vector2(208,64), Vector2(0,0), WHITE, UI_UPGRADER_BUY_BUTTON, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, GRAY, 0, 0, 0, NULL, 0);
-    addEntity(buyFreezingGrenade);
-    entity* buyExplosiveGrenade = createNewEntity(Vector2(480, 224), Vector2(208,64), Vector2(0,0), WHITE, UI_UPGRADER_BUY_BUTTON, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, GRAY, 0, 0, 0, NULL, 0);
-    addEntity(buyExplosiveGrenade);
+    entity upgraderUIBackground = GetBasicTemplate();
+    upgraderUIBackground.size = Vector2(800, 450);
+    upgraderUIBackground.defaultColor = (Color){128, 128, 128, 128};
+    upgraderUIBackground.entityType = UI_UPGRADER_IMAGE;
+    upgraderUIBackground.isUI = true;
+    allocAndAddEntity(upgraderUIBackground);
 
-    upgraderUIBackground->isUI = true;
-    handgunUpgradeButton->isUI = true;
-    handgunUpgradeButton->buttonCallback = Upgrade;
-    handgunUpgradeButton->buttonIndex = 0;
-    dashUpgradeButton->isUI = true;
-    dashUpgradeButton->buttonCallback = Upgrade;
-    dashUpgradeButton->buttonIndex = 1;
-    maxHealthUpgradeButton->isUI = true;
-    maxHealthUpgradeButton->buttonCallback = Upgrade;
-    maxHealthUpgradeButton->buttonIndex = 2;
-    //Buy
-    buySharpenerButton->isUI = true;
-    buySharpenerButton->buttonCallback = BuyOrEquip;
-    buySharpenerButton->buttonIndex = 0;
-    buyShotgunButton->isUI = true;
-    buyShotgunButton->buttonCallback = BuyOrEquip;
-    buyShotgunButton->buttonIndex = 1;
-    buyDecoy->isUI = true;
-    buyDecoy->buttonCallback = BuyOrEquip;
-    buyDecoy->buttonIndex = 3;
-    buyFreezingGrenade->isUI = true;
-    buyFreezingGrenade->buttonCallback = BuyOrEquip;
-    buyFreezingGrenade->buttonIndex = 4;
-    buyExplosiveGrenade->isUI = true;
-    buyExplosiveGrenade->buttonCallback = BuyOrEquip;
-    buyExplosiveGrenade->buttonIndex = 5;
+    entity upgradeButtonTemplate = GetUpgradeButtonTemplate();
+    SetStartPositionAndSize(&upgradeButtonTemplate, Vector2(32, 64), Vector2(208, 64));
+    upgradeButtonTemplate.buttonIndex = 0;
+    allocAndAddEntity(upgradeButtonTemplate);
+    SetStartPositionAndSize(&upgradeButtonTemplate, Vector2(256, 64), Vector2(192, 64));
+    upgradeButtonTemplate.buttonIndex = 1;
+    allocAndAddEntity(upgradeButtonTemplate);
+    SetStartPositionAndSize(&upgradeButtonTemplate, Vector2(480, 64), Vector2(224, 64));
+    upgradeButtonTemplate.buttonIndex = 2;
+    allocAndAddEntity(upgradeButtonTemplate);
+
+    entity buyButtonTemplate = GetBuyButtonTemplate();
+    SetStartPositionAndSize(&buyButtonTemplate, Vector2(32, 144), Vector2(208, 64));
+    buyButtonTemplate.buttonIndex = 0;
+    allocAndAddEntity(buyButtonTemplate);
+    SetStartPositionAndSize(&buyButtonTemplate, Vector2(32, 224), Vector2(208, 64));
+    buyButtonTemplate.buttonIndex = 1;
+    allocAndAddEntity(buyButtonTemplate);
+    SetStartPositionAndSize(&buyButtonTemplate, Vector2(256, 144), Vector2(208, 64));
+    buyButtonTemplate.buttonIndex = 3;
+    allocAndAddEntity(buyButtonTemplate);
+    SetStartPositionAndSize(&buyButtonTemplate, Vector2(256, 224), Vector2(208, 64));
+    buyButtonTemplate.buttonIndex = 4;
+    allocAndAddEntity(buyButtonTemplate);
+    SetStartPositionAndSize(&buyButtonTemplate, Vector2(480, 224), Vector2(208, 64));
+    buyButtonTemplate.buttonIndex = 5;
+    allocAndAddEntity(buyButtonTemplate);
 }
 
-void SpawnEntites()
+void SpawnEntities()
 {
-    player = createNewEntity(Vector2(400, 200), Vector2(20, 20), Vector2(0.5f, 0.5f), VIOLET, PLAYER, 2.5f, 128, 2, 2.0f, 100, 0, 0, 0, 0.125f, RED, 0, 0, 0, NULL, 0);
-    addEntity(player);
-    player->reloadCooldown = 0;
-    handgun = createNewEntity(Vector2(0,0), Vector2(0,0), Vector2(0,0), VIOLET, DEFAULT, 0, 0, 0, 0, 0, 10, 0.1f, 10.0f, 0, RED, 0, 0, 0, NULL, 0);
-    addEntity(handgun);
-    handgun->ammoCount = 7;
-    handgun->maxAmmoCount = 7;
-    handgun->reloadCooldown = 1.0f;
-    handgun->isAutomatic = true;
+    entity playerTemp = GetPlayerTemplate();
+    SetStartPosition(&playerTemp, Vector2(400, 200));
+    playerTemp.damagedCooldown = 0;
+    player = allocAndAddEntity(playerTemp);
+    handgun = allocAndAddEntity(GetHandgunTemplate());
     equippedWeapon = handgun;
-    sharpener = createNewEntity(Vector2(0,0), Vector2(0,0), Vector2(0,0), VIOLET, DEFAULT, 0, 0, 0, 0, 0, 5, 0.25f, 10.0f, 0, RED, 0, 0, 0, NULL, 0);
-    addEntity(sharpener);
-    sharpener->ammoCount = 30;
-    sharpener->maxAmmoCount = 30;
-    sharpener->reloadCooldown = 10.0f;
-    sharpener->isAutomatic = true;
-    sharpener->canBeEquipped = true;
-    sharpener->buttonIndex = 0;
-    shotgun = createNewEntity(Vector2(0,0), Vector2(0,0), Vector2(0,0), VIOLET, DEFAULT, 0, 0, 0, 0, 0, 20, 1.0f, 10.0f, 0, RED, 0, 0, 0, NULL, 0);
-    addEntity(shotgun);
-    shotgun->ammoCount = 4;
-    shotgun->maxAmmoCount = 4;
-    shotgun->reloadCooldown = 10.0f;
-    shotgun->isAutomatic = false;
-    shotgun->canBeEquipped = true;
-    shotgun->buttonIndex = 1;
-    sniperGun = createNewEntity(Vector2(0,0), Vector2(0,0), Vector2(0,0), VIOLET, DEFAULT, 0, 0, 0, 0, 0, 20, 1.0f, 20.0f, 0, RED, 0, 0, 0, NULL, 0);
-    addEntity(sniperGun);
-    sniperGun->ammoCount = 4;
-    sniperGun->maxAmmoCount = 4;
-    sniperGun->reloadCooldown = 1.0f;
-    sniperGun->isAutomatic = false;
-    sniperGun->canBeEquipped = true;
-    sniperGun->buttonIndex = 2;
+    sharpener = allocAndAddEntity(GetSharpenerTemplate());
+    shotgun = allocAndAddEntity(GetShotgunTemplate());
+    sniperGun = allocAndAddEntity(GetSniperGunTemplate());
     inventorySecondSlot = NULL;
-    decoy = createNewEntity(Vector2(0,0), Vector2(0,0), Vector2(0,0), VIOLET, DEFAULT, 0, 0, 0, 0, 0, 0, 0, 0, 0, RED, 0, 0, 0, NULL, 0);
-    addEntity(decoy);
-    decoy->count = 0;
-    decoy->buttonIndex = 3;
-    freezingGrenade = createNewEntity(Vector2(0,0), Vector2(0,0), Vector2(0,0), VIOLET, DEFAULT, 0, 0, 0, 0, 0, 0, 0, 100.0f, 0, RED, 0, 0, 0, NULL, 0);
-    addEntity(freezingGrenade);
-    freezingGrenade->stamina = -100.0f;
-    freezingGrenade->count = 0;
-    freezingGrenade->buttonIndex = 4;
-    explosiveGrenade = createNewEntity(Vector2(0,0), Vector2(0,0), Vector2(0,0), VIOLET, DEFAULT, 0, 0, 0, 0, 0, 10, 0, 100.0f, 0, RED, 0, 0, 0, NULL, 0);
-    addEntity(explosiveGrenade);
-    explosiveGrenade->count = 0;
-    explosiveGrenade->buttonIndex = 5;
-    entity* upgrader = createNewEntity(Vector2(400,250), Vector2(32, 32), Vector2(0.5f, 0.5f), GOLD, UPGRADER, 0, 0, 0, 0, 0 ,0, 0, 0, 0, RED, 0, 0, 0, NULL, 0);
-    addEntity(upgrader);
-    SpawnUI();
+    decoy = allocAndAddEntity(GetDecoyTemplate());
+    freezingGrenade = allocAndAddEntity(GetFreezingGrenadeTemplate());
+    explosiveGrenade = allocAndAddEntity(GetExplosiveGrenadeTemplate());
+    allocAndAddEntity(GetUpgraderTemplate());
+    NewSpawnUI();
 }
 
 void SpawnEnemies()
 {
-    entity* bigEnemy = createNewEntity(Vector2(100, 200), Vector2(64, 64), Vector2(0.5f, 0.5f), DARKPURPLE, ENEMY, 0.5f, 0, 0, 0, 40, 20, 0.5f, 50.0f, 0.125f, RED, 350.0f, 100.0f, 20.0f, NULL, 2.0f);
-    addEntity(bigEnemy);
-    entity* health_hitbox = createNewEntity(Vector2(-36.0f, 0.0f), Vector2(16,16), Vector2(0.5f, 0.5f), BLUE, HEALTH_HITBOX, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, RED, 0, 0, 0, bigEnemy, 0);
-    addEntity(health_hitbox);
-    bigEnemy->child = health_hitbox;
-    bigEnemy->cashDropAmount = 50;
+    entity bigEnemy = GetBigEnemyTemplate();
+    SetStartPosition(&bigEnemy, Vector2(100, 200));
+    entity* be = allocAndAddEntity(bigEnemy);
+
+    entity healthHitbox = GetHealthHitboxTemplate();
+    SetStartPositionAndSize(&healthHitbox, Vector2(-36.0f, 0.0f), Vector2(16, 16));
+    healthHitbox.parent = be;
+    entity* hh = allocAndAddEntity(healthHitbox);
+
+    be->child = hh;
     for(int i = 0; i < 3; i++)
     {
-        entity* fastEnemy = createNewEntity(Vector2(200, 300 + i * 30), Vector2(16, 16), Vector2(0.5f, 0.5f), DARKPURPLE, ENEMY, 3.0f, 0, 0, 0, 20, 10, 0.25f, 25.0f, 0.125f, RED, 650.0f, 500.0f, 100.0f, NULL, 0.5f);
-        addEntity(fastEnemy);
-        entity* health_hitbox = createNewEntity(Vector2(-10.0f, 0.0f), Vector2(4,4), Vector2(0.5f, 0.5f), BLUE, HEALTH_HITBOX, 0, 0, 0, 0, 0, 0, 0, 0, 0.125f, RED, 0, 0, 0, fastEnemy, 0);
-        addEntity(health_hitbox);
-        fastEnemy->child = health_hitbox;
-        fastEnemy->cashDropAmount = 25;
+        entity fastEnemy = GetFastEnemyTemplate();
+        SetStartPosition(&fastEnemy, Vector2(200, 300 + i * 30));
+        entity* fe = allocAndAddEntity(fastEnemy);
+
+        entity healthHitbox = GetHealthHitboxTemplate();
+        SetStartPositionAndSize(&healthHitbox, Vector2(-10.0f, 0.0f), Vector2(4, 4));
+        healthHitbox.parent = fe;
+        entity* hh = allocAndAddEntity(healthHitbox);
+
+        fe->child = hh;
     }
 }
 
@@ -1356,16 +1226,17 @@ void ReloadGame()
     inventorySecondSlot = NULL;
     equippedWeapon = NULL;
     equippedGrenade = NULL;
-    SpawnEntites();
+    SpawnEntities();
 }
 
 int main()
 {
+    InitializeTemplates();
     entities = malloc(sizeof(entity*) * capacity);
     SetConfigFlags(FLAG_VSYNC_HINT);
     InitWindow(800, 450, "GameRunner - Raylib - C");
 
-    SpawnEntites();
+    SpawnEntities();
     PrepareUpgrades();
     SetUpgrades();
     while (!WindowShouldClose())
@@ -1390,7 +1261,7 @@ int main()
                 //printf("i: %d\n", i);
                 // printf("entityType: %d\n", entities[i]->entityType);
                 Vector2 startPos = GetEntityCorner(entities[i]);
-                if(entities[i]->currentDamagedCooldown > 0)
+                if(entities[i]->damagedCooldown > 0)
                 {
                     DrawRectangleV(startPos, entities[i]->size, entities[i]->damagedColor);
                 }
