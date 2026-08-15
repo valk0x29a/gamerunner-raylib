@@ -396,7 +396,7 @@ void UpdatePlayerMovement()
             free(result.hitPositions);
         }
 
-        if(player->numberOfDashes < player->template->dashCooldown)
+        if(player->numberOfDashes < player->template->numberOfDashes)
         {
             player->dashCooldown -= GetFrameTime();
             if(player->dashCooldown <= 0)
