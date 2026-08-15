@@ -541,11 +541,6 @@ void UpdatePlayerAttack()
             }
             equippedGrenade->count--;
         }
-
-        if(player->damagedCooldown > 0)
-        {
-            player->damagedCooldown -= GetFrameTime();
-        }
     }
 }
 
@@ -673,10 +668,6 @@ void UpdateEnemiesAttack()
     for(int i = 0; i < firstFreeIndex; i++)
     {
         if(entities[i]->entityType != ENEMY) { continue; }
-        if(entities[i]->damagedCooldown > 0)
-        {
-            entities[i]->damagedCooldown -= GetFrameTime();
-        }
 
         if(entities[i]->target == NULL || entities[i]->isRegenerating) { continue; }
         if(entities[i]->target->entityType == DECOY) { continue; }
@@ -718,10 +709,6 @@ void UpdateHealthHitBoxes()
             offset.x = -offset.x;
         }
         entities[i]->position = Vector2Add(entities[i]->parent->position, offset);
-        if(entities[i]->damagedCooldown > 0)
-        {
-            entities[i]->damagedCooldown -= GetFrameTime();
-        }
     }
 }
 
@@ -790,11 +777,10 @@ void UpdateDestroyTimer()
 {
     for(int i = 0; i < firstFreeIndex; i++)
     {
-        entity* e = entities[i];
-        if(e->destroyTimer < 0.0f)
+        if(entities[i]->destroyTimer < 0.0f)
         {
-            e->destroyTimer += GetFrameTime();
-            if(e->destroyTimer >= 0.0f)
+            entities[i]->destroyTimer += GetFrameTime();
+            if(entities[i]->destroyTimer >= 0.0f)
             {
                 removeEntity(i);
             }
@@ -1039,11 +1025,6 @@ void DrawUpgraderUI()
             {
                 (*entities[i]->buttonCallback)(entities[i]);
             }
-
-            if(entities[i]->damagedCooldown > 0)
-            {
-                entities[i]->damagedCooldown -= GetFrameTime();
-            }
             continue;
         }
         int buyIndex = entities[i]->buttonIndex;
@@ -1076,7 +1057,13 @@ void DrawUpgraderUI()
         {
             (*entities[i]->buttonCallback)(entities[i]);
         }
+    }
+}
 
+void UpdateDamagedCooldown()
+{
+    for(int i = 0; i < firstFreeIndex; i++)
+    {
         if(entities[i]->damagedCooldown > 0)
         {
             entities[i]->damagedCooldown -= GetFrameTime();
@@ -1197,11 +1184,13 @@ void SpawnEnemies()
 {
     entity bigEnemy = GetBigEnemyTemplate();
     SetStartPosition(&bigEnemy, Vector2(100, 200));
+    bigEnemy.damagedCooldown = 0;
     entity* be = allocAndAddEntity(bigEnemy);
 
     entity healthHitbox = GetHealthHitboxTemplate();
     SetStartPositionAndSize(&healthHitbox, Vector2(-36.0f, 0.0f), Vector2(16, 16));
     healthHitbox.parent = be;
+    healthHitbox.damagedCooldown = 0;
     entity* hh = allocAndAddEntity(healthHitbox);
 
     be->child = hh;
@@ -1209,11 +1198,13 @@ void SpawnEnemies()
     {
         entity fastEnemy = GetFastEnemyTemplate();
         SetStartPosition(&fastEnemy, Vector2(200, 300 + i * 30));
+        fastEnemy.damagedCooldown = 0;
         entity* fe = allocAndAddEntity(fastEnemy);
 
         entity healthHitbox = GetHealthHitboxTemplate();
         SetStartPositionAndSize(&healthHitbox, Vector2(-10.0f, 0.0f), Vector2(4, 4));
         healthHitbox.parent = fe;
+        healthHitbox.damagedCooldown = 0;
         entity* hh = allocAndAddEntity(healthHitbox);
 
         fe->child = hh;
@@ -1269,6 +1260,7 @@ int main()
             UpdateWaves();
             UpdateUpgrader();
             UpdateDamageTexts();
+            UpdateDamagedCooldown();
             UpdateDestroyTimer();
             for(int i = 0; i < firstFreeIndex; i++)
             {
