@@ -1123,7 +1123,7 @@ void SpawnHealthPickup(Vector2 position)
     allocAndAddEntity(healthPickup);
 }
 
-void NewSpawnUI()
+void SpawnUI()
 {
     entity upgraderUIBackground = GetBasicTemplate();
     upgraderUIBackground.size = Vector2(800, 450);
@@ -1177,7 +1177,7 @@ void SpawnEntities()
     freezingGrenade = allocAndAddEntity(GetFreezingGrenadeTemplate());
     explosiveGrenade = allocAndAddEntity(GetExplosiveGrenadeTemplate());
     allocAndAddEntity(GetUpgraderTemplate());
-    NewSpawnUI();
+    SpawnUI();
 }
 
 void SpawnEnemies()
