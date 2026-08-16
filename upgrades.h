@@ -18,6 +18,8 @@ extern entity* decoy;
 extern entity* freezingGrenade;
 extern entity* explosiveGrenade;
 
+extern entity* exploder;
+
 extern entity playerTemplate;
 
 // const int sharpenerUpgradeIndex = 3;
@@ -59,6 +61,9 @@ int maxHealthUpgradesCount = 2;
 int maxHealthUpgradesPrices[1];
 int maxHealthUpgrades[2];
 
+int exploderPrice = 100;
+bool isExploderUnlocked = true;
+
 const char* GetUpgradeButtonText(int upgradeIndex)
 {
     switch(upgradeIndex)
@@ -80,6 +85,7 @@ char* GetItemName(int buyIndex)
         case 3: return "Decoy";
         case 4: return "Freezing Grenade";
         case 5: return "Explosive Grenade";
+        case 6: return "Exploder";
     };
     return "Invalid Buy Index";
 }
@@ -94,6 +100,7 @@ int GetPrice(int buyIndex)
         case 3: return decoyPrice;
         case 4: return freezingGrenadePrice;
         case 5: return explosiveGrenadePrice;
+        case 6: return exploderPrice;
     };
     return INT_MAX;
 }
@@ -105,6 +112,7 @@ bool* IsBought(int buyIndex)
         case 0: return &isSharpenerUnlocked;
         case 1: return &isShotgunUnlocked;
         case 2: return &isSniperGunUnlocked;
+        case 6: return &isExploderUnlocked;
     };
     return 0;
 }
@@ -119,6 +127,7 @@ entity* GetBuyItem(int buyIndex)
         case 3: return decoy;
         case 4: return freezingGrenade;
         case 5: return explosiveGrenade;
+        case 6: return exploder;
     };
     return 0;
 }

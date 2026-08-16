@@ -1,7 +1,9 @@
 #include "raylib.h"
 #include "raymath.h"
 #include <limits.h>
+#include <math.h>
 #include <stdlib.h>
+#include <time.h>
 #include <float.h>
 #include <stdio.h>
 #include <string.h>
@@ -67,6 +69,8 @@ entity* equippedGrenade = NULL;
 entity* decoy;
 entity* freezingGrenade;
 entity* explosiveGrenade;
+
+entity* exploder;
 #include "upgrades.h"
 int enemiesCount = 0;
 
@@ -408,7 +412,7 @@ void UpdatePlayerAttack()
         }
 
         bool shouldShot = equippedWeapon->isAutomatic ? IsMouseButtonDown(MOUSE_LEFT_BUTTON) : IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
-        if(shouldShot && player->attackCooldown <= 0 && player->reloadCooldown <= 0 && !isUpgraderUIActive && equippedWeapon->ammoCount > 0)
+        if(shouldShot && player->attackCooldown <= 0 && player->reloadCooldown <= 0 && !isUpgraderUIActive && equippedWeapon->ammoCount > 0 && equippedWeapon->count == 0)
         {
             Vector2 mousePosition = GetMousePosition();
             Vector2 offset = Vector2Subtract(mousePosition, player->position);
@@ -443,6 +447,57 @@ void UpdatePlayerAttack()
                 }
                 Vector2 damageTextPosition = Vector2Add(result.hitPosition, Vector2(0, -20));
                 SpawnDamageText(damageTextPosition, equippedWeapon->attackDamage * attackMultiplier);
+            }
+            player->attackCooldown = equippedWeapon->attackCooldown;
+            equippedWeapon->ammoCount--;
+            if(equippedWeapon->ammoCount <= 0)
+            {
+                player->reloadCooldown = equippedWeapon->reloadCooldown;
+            }
+        }
+        else if(shouldShot && player->attackCooldown <= 0 && player->reloadCooldown <= 0 && !isUpgraderUIActive && equippedWeapon->ammoCount > 0)
+        {
+            for(int j = 0; j < equippedWeapon->count; j++)
+            {
+                Vector2 offset = Vector2Subtract(GetMousePosition(), player->position);
+                offset = Vector2(fabsf(offset.y), fabsf(offset.x));
+                float maxSpread = equippedWeapon->size.y / Vector2Length(offset);
+                float offsetMultiplayer = (float)(rand() % (int)(maxSpread * 2 * 100)) / 100;
+                offsetMultiplayer -= maxSpread;
+                Vector2 shotPosition = Vector2Add(GetMousePosition(), Vector2Multiply(offset, Vector2(offsetMultiplayer, offsetMultiplayer)));
+                offset = Vector2Subtract(shotPosition, player->position);
+                offset = Vector2Multiply(offset, Vector2(3,3));
+                DrawLineV(player->position, Vector2Add(player->position, offset), RED);
+                RayCastHitResult result = RayCastHit(player->position, shotPosition, ENEMY | HEALTH_HITBOX);
+                if(result.colliding)
+                {
+                    SpawnHitPoint(result.hitPosition);
+                    int entityIndex = result.entityIndex;
+                    entity* e = entities[entityIndex];
+                    if(entities[entityIndex]->entityType == HEALTH_HITBOX)
+                    {
+                        entities[entityIndex]->damagedCooldown = GetTemplate(entities[entityIndex]->templateIndex).damagedCooldown;
+                        e = entities[entityIndex]->parent;
+                    }
+                    float x = result.hitPosition.x;
+                    float marginOfError = 1.0f;
+                    bool isHittingFront = e->isFlipped ? x < e->position.x + e->size.x - marginOfError : x > e->position.x + marginOfError;
+                    float attackMultiplier = isHittingFront ? 0.5f : 1.0f;
+                    e->health -= equippedWeapon->attackDamage * attackMultiplier;
+                    e->damagedCooldown = GetTemplate(e->templateIndex).damagedCooldown;
+                    if(e->health <= 0)
+                    {
+                        // printf("%d\n", entities[entityIndex]->entityType);
+                        if(entities[entityIndex]->entityType == HEALTH_HITBOX)
+                        {
+                            entity healthPickup = GetHealthPickupTemplate();
+                            SetStartPosition(&healthPickup, e->position);
+                            allocAndAddEntity(healthPickup);
+                        }
+                    }
+                    Vector2 damageTextPosition = Vector2Add(result.hitPosition, Vector2(0, -20));
+                    SpawnDamageText(damageTextPosition, equippedWeapon->attackDamage * attackMultiplier);
+                }
             }
             player->attackCooldown = equippedWeapon->attackCooldown;
             equippedWeapon->ammoCount--;
@@ -487,6 +542,21 @@ void UpdatePlayerAttack()
             }
             equippedGrenade->count--;
         }
+
+        if(IsKeyPressed(KEY_Q) && isExploderUnlocked && player->attackCooldown <= 0 && !isUpgraderUIActive)
+        {
+            for(int j = 0; j < firstFreeIndex; j++)
+            {
+                if(entities[j]->entityType != ENEMY) { continue; }
+                Vector2 offset = Vector2Subtract(entities[j]->position, entities[i]->position);
+                float multiplier = exploder->attackDamage / Vector2Length(offset);
+                float strength = max((float)exploder->attackRange - Vector2Length(offset), 0);
+                printf("%f\n", strength);
+                printf("%f\n", multiplier);
+                entities[j]->velocity = Vector2Multiply(offset, Vector2(multiplier * strength, multiplier * strength));
+            }
+            player->attackCooldown = equippedWeapon->attackCooldown;
+        }
     }
 }
 
@@ -526,86 +596,76 @@ void UpdateEnemiesTarget()
     }
 }
 
+void UpdateEnemiesRegeneration()
+{
+    for(int i = 0; i < firstFreeIndex; i++)
+    {
+        if(entities[i]->entityType != ENEMY) { continue; }
+        if(!entities[i]->isRegenerating) { continue; }
+
+        entities[i]->stamina += GetFrameTime() * entities[i]->staminaRegenerationSpeed;
+        if(entities[i]->stamina > GetTemplate(entities[i]->templateIndex).stamina)
+        {
+            entities[i]->isRegenerating = false;
+        }
+    }
+}
+
 void UpdateEnemiesMovement()
 {
     for(int i = 0; i < firstFreeIndex; i++)
     {
         if(entities[i]->entityType != ENEMY) { continue; }
-        if(!entities[i]->isRegenerating)
-        {
-            if(entities[i]->target != NULL)
-            {
-                float speed = entities[i]->speed;
-                Vector2 enemyPos = entities[i]->position;
-                Vector2 playerPos = entities[i]->target->position;
-                if(enemyPos.x < playerPos.x)
-                {
-                    if(entities[i]->isFlipped)
-                    {
-                        entities[i]->flipTimer -= GetFrameTime();
-                        if(entities[i]->flipTimer < 0)
-                        {
-                            entities[i]->flipTimer = GetTemplate(entities[i]->templateIndex).flipTimer;
-                            entities[i]->isFlipped = !entities[i]->isFlipped;
-                            entities[i]->stamina -= 10.0f;
-                        }
-                    }
-                    else
-                    {
-                        entities[i]->position.x += min(speed, fabsf(enemyPos.x - playerPos.x));
-                        entities[i]->flipTimer = GetTemplate(entities[i]->templateIndex).flipTimer;
-                    }
-                }
-                if(enemyPos.x > playerPos.x)
-                {
-                    if(!entities[i]->isFlipped)
-                    {
-                        entities[i]->flipTimer -= GetFrameTime();
-                        if(entities[i]->flipTimer < 0)
-                        {
-                            entities[i]->flipTimer = GetTemplate(entities[i]->templateIndex).flipTimer;
-                            entities[i]->isFlipped = !entities[i]->isFlipped;
-                            entities[i]->stamina -= 10.0f;
-                        }
-                    }
-                    else
-                    {
-                        entities[i]->position.x -= min(speed, fabsf(enemyPos.x - playerPos.x));
-                        entities[i]->flipTimer = GetTemplate(entities[i]->templateIndex).flipTimer;
-                    }
-                }
-                if(enemyPos.y < playerPos.y)
-                {
-                    entities[i]->position.y += min(speed, fabsf(enemyPos.y - playerPos.y));
-                }
-                if(enemyPos.y > playerPos.y)
-                {
-                    entities[i]->position.y -= min(speed, fabsf(enemyPos.y - playerPos.y));
-                }
-            }
-        }
-        else
-        {
-            entities[i]->stamina += GetFrameTime() * entities[i]->staminaRegenerationSpeed;
-            if(entities[i]->stamina > GetTemplate(entities[i]->templateIndex).stamina)
-            {
-                entities[i]->isRegenerating = false;
-            }
-        }
+        if(entities[i]->isRegenerating) { continue; }
+        if(entities[i]->target == NULL) { continue; }
 
-        if(isEntityColliding(i, ENEMY | PLAYER))
+        float speed = entities[i]->speed;
+        Vector2 enemyPos = entities[i]->position;
+        Vector2 playerPos = entities[i]->target->position;
+        if(enemyPos.x < playerPos.x)
         {
-            entities[i]->position = entities[i]->previousPosition;
+            if(entities[i]->isFlipped)
+            {
+                entities[i]->flipTimer -= GetFrameTime();
+                if(entities[i]->flipTimer < 0)
+                {
+                    entities[i]->flipTimer = GetTemplate(entities[i]->templateIndex).flipTimer;
+                    entities[i]->isFlipped = !entities[i]->isFlipped;
+                    entities[i]->stamina -= 10.0f;
+                }
+            }
+            else
+            {
+                entities[i]->position.x += min(speed, fabsf(enemyPos.x - playerPos.x));
+                entities[i]->flipTimer = GetTemplate(entities[i]->templateIndex).flipTimer;
+            }
         }
-        // printf("%f\n", entities[i]->stamina);
-        // printf("%f\n", entities[i]->template->stamina);
-        entities[i]->stamina -= getSqrDistance(entities[i]->position, entities[i]->previousPosition) * 0.1f;
-        if(entities[i]->stamina < 0)
+        if(enemyPos.x > playerPos.x)
         {
-            entities[i]->isRegenerating = true;
+            if(!entities[i]->isFlipped)
+            {
+                entities[i]->flipTimer -= GetFrameTime();
+                if(entities[i]->flipTimer < 0)
+                {
+                    entities[i]->flipTimer = GetTemplate(entities[i]->templateIndex).flipTimer;
+                    entities[i]->isFlipped = !entities[i]->isFlipped;
+                    entities[i]->stamina -= 10.0f;
+                }
+            }
+            else
+            {
+                entities[i]->position.x -= min(speed, fabsf(enemyPos.x - playerPos.x));
+                entities[i]->flipTimer = GetTemplate(entities[i]->templateIndex).flipTimer;
+            }
         }
-        entities[i]->previousPosition = entities[i]->position;
-        // printf("%d:  %f\n", i, entities[i]->currentAttackCooldown);
+        if(enemyPos.y < playerPos.y)
+        {
+            entities[i]->position.y += min(speed, fabsf(enemyPos.y - playerPos.y));
+        }
+        if(enemyPos.y > playerPos.y)
+        {
+            entities[i]->position.y -= min(speed, fabsf(enemyPos.y - playerPos.y));
+        }
     }
 }
 
@@ -832,6 +892,7 @@ void BuyOrEquip(entity* thisButton)
         playerCash -= GetPrice(buyIndex);
     }
     entity* item = GetBuyItem(buyIndex);
+    if(item == exploder) { return; }
     if(item->canBeEquipped)
     {
         inventorySecondSlot = item;
@@ -953,6 +1014,28 @@ void UpdateDamagedCooldown()
     }
 }
 
+void UpdateEnemyVelocity()
+{
+    for(int i = 0; i < firstFreeIndex; i++)
+    {
+        if(entities[i]->entityType != ENEMY) { continue; }
+        entities[i]->position = Vector2Add(entities[i]->position, Vector2Multiply(entities[i]->velocity, Vector2(GetFrameTime(), GetFrameTime())));
+        entities[i]->velocity = Vector2Subtract(entities[i]->velocity, Vector2Multiply(entities[i]->velocity, Vector2(GetFrameTime() * entities[i]->drag, GetFrameTime() * entities[i]->drag)));
+        if(isEntityColliding(i, ENEMY | PLAYER))
+        {
+            entities[i]->position = entities[i]->previousPosition;
+        }
+
+        entities[i]->stamina -= getSqrDistance(entities[i]->position, entities[i]->previousPosition) * 0.1f;
+        if(entities[i]->stamina < 0)
+        {
+            entities[i]->isRegenerating = true;
+        }
+
+        entities[i]->previousPosition = entities[i]->position;
+    }
+}
+
 void SpawnHitPoint(Vector2 position)
 {
     entity hitPoint = GetHitPointTemplate();
@@ -1004,6 +1087,9 @@ void SpawnUI()
     SetStartPositionAndSize(&buyButtonTemplate, Vector2(480, 224), Vector2(208, 64));
     buyButtonTemplate.buttonIndex = 5;
     allocAndAddEntity(buyButtonTemplate);
+    SetStartPositionAndSize(&buyButtonTemplate, Vector2(480, 144), Vector2(208, 64));
+    buyButtonTemplate.buttonIndex = 6;
+    allocAndAddEntity(buyButtonTemplate);
 }
 
 void SpawnEntities()
@@ -1021,6 +1107,7 @@ void SpawnEntities()
     decoy = allocAndAddEntity(GetDecoyTemplate());
     freezingGrenade = allocAndAddEntity(GetFreezingGrenadeTemplate());
     explosiveGrenade = allocAndAddEntity(GetExplosiveGrenadeTemplate());
+    exploder = allocAndAddEntity(GetExploderTemplate());
     allocAndAddEntity(GetUpgraderTemplate());
     SpawnUI();
 }
@@ -1082,6 +1169,7 @@ void ReloadGame()
 
 int main()
 {
+    srand(time(NULL));
     InitializeTemplates();
     entities = malloc(sizeof(entity*) * capacity);
     SetConfigFlags(FLAG_VSYNC_HINT);
@@ -1098,8 +1186,10 @@ int main()
             UpdatePlayerAttack();
             DeleteDeadEnemies();
             UpdateEnemiesTarget();
+            UpdateEnemiesRegeneration();
             UpdateEnemiesMovement();
             UpdateEnemiesAttack();
+            UpdateEnemyVelocity();
             UpdateHealthHitBoxes();
             UpdateHealthPickups();
             if(IsKeyPressed(KEY_K) && nextWaveTimer > 0) { nextWaveTimer = GetFrameTime(); }

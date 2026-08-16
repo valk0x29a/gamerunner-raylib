@@ -56,6 +56,8 @@ entity GetBigEnemyTemplate()
     bigEnemy.flipTimer = 2.0f;
     bigEnemy.cashDropAmount = 50;
     bigEnemy.templateIndex = 2;
+    bigEnemy.isCollisionActive = true;
+    bigEnemy.drag = 16.0f;
     return bigEnemy;
 }
 
@@ -79,6 +81,8 @@ entity GetFastEnemyTemplate()
     fastEnemy.flipTimer = 0.5f;
     fastEnemy.cashDropAmount = 25;
     fastEnemy.templateIndex = 3;
+    fastEnemy.isCollisionActive = true;
+    fastEnemy.drag = 8.0f;
     return fastEnemy;
 }
 
@@ -133,6 +137,8 @@ entity GetShotgunTemplate()
     shotgun.isAutomatic = false;
     shotgun.canBeEquipped = true;
     shotgun.buttonIndex = 1;
+    shotgun.count = 4;
+    shotgun.size = Vector2(0, 32);
     shotgun.templateIndex = 7;
     return shotgun;
 }
@@ -150,6 +156,18 @@ entity GetSniperGunTemplate()
     sniperGun.buttonIndex = 2;
     sniperGun.templateIndex = 8;
     return sniperGun;
+}
+
+entity GetExploderTemplate()
+{
+    entity newEntity = GetBasicTemplate();
+    newEntity.attackDamage = 16;
+    newEntity.attackCooldown = 1.0f;
+    newEntity.attackRange = 200.0f;
+    newEntity.isAutomatic = false;
+    newEntity.canBeEquipped = true;
+    newEntity.buttonIndex = 6;
+    return newEntity;
 }
 
 

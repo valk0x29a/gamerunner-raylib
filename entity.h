@@ -54,4 +54,7 @@ typedef struct entity
     int count;
     struct entity* target;
     int templateIndex;
+    Vector2 velocity;
+    float drag;
+    bool isCollisionActive;
 } entity;
