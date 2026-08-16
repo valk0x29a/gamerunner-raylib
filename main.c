@@ -12,7 +12,7 @@
 
 #define min(a, b) a > b ? b : a
 #define max(a, b) a > b ? a : b
-#include "templates.c"
+#include "templates.h"
 
 void SetStartPosition(entity* e, Vector2 position)
 {
@@ -66,70 +66,7 @@ entity* equippedGrenade = NULL;
 entity* decoy;
 entity* freezingGrenade;
 entity* explosiveGrenade;
-
-// const int sharpenerUpgradeIndex = 3;
-int sharpenerPrice = 100;
-bool isSharpenerUnlocked = false;
-// const int sharpenerUpgradeIndex = 3;
-int shotgunPrice = 100;
-bool isShotgunUnlocked = false;
-int sniperGunPrice = 0;
-bool isSniperGunUnlocked = false;
-
-int decoyPrice = 100;
-int freezingGrenadePrice = 100;
-int explosiveGrenadePrice = 100;
-
-int currentHandgunUpgrade = 0;
-int handgunUpgradesCount = 2;
-int handgunUpgradesPrices[1];
-typedef struct handgunUpgrade
-{
-    int attackDamage;
-    float attackCooldown;
-} handgunUpgrade;
-handgunUpgrade handgunUpgrades[2];
-
-int currentDashUpgrade = 0;
-int dashUpgradesCount = 2;
-int dashUpgradesPrices[1];
-typedef struct dashUpgrade
-{
-    int numberOfDashes;
-    float dashCooldown;
-} dashUpgrade;
-dashUpgrade dashUpgrades[2];
-
-int currentMaxHealthUpgrade = 0;
-int maxHealthUpgradesCount = 2;
-int maxHealthUpgradesPrices[1];
-int maxHealthUpgrades[2];
-
-const char* GetUpgradeButtonText(int upgradeIndex)
-{
-    switch(upgradeIndex)
-    {
-        case 0: return "Upgrade Handgun";
-        case 1: return "Upgrade Dash";
-        case 2: return "Upgrade Max Health";
-    };
-    return "Invalid Upgrade Index";
-}
-
-char* GetItemName(int buyIndex)
-{
-    switch(buyIndex)
-    {
-        case 0: return "Sharpener";
-        case 1: return "Shotgun";
-        case 2: return "Sniper Gun";
-        case 3: return "Decoy";
-        case 4: return "Freezing Grenade";
-        case 5: return "Explosive Grenade";
-    };
-    return "Invalid Buy Index";
-}
-
+#include "upgrades.h"
 int enemiesCount = 0;
 
 int currentWave = 0;
@@ -298,7 +235,6 @@ RayCastHitResult RayCastHit(Vector2 r1, Vector2 r2, uint entityTypeMask)
     RayCastHitResult result;
     result.colliding = closestDistance != FLT_MAX;
     result.hitPosition = closestHit;
-    SpawnHitPoint(result.hitPosition);
     result.entityIndex = closestEntityIndex;
     return result;
 }
@@ -480,6 +416,7 @@ void UpdatePlayerAttack()
             RayCastHitResult result = RayCastHit(player->position, mousePosition, ENEMY | HEALTH_HITBOX);
             if(result.colliding)
             {
+                SpawnHitPoint(result.hitPosition);
                 int entityIndex = result.entityIndex;
                 entity* e = entities[entityIndex];
                 if(entities[entityIndex]->entityType == HEALTH_HITBOX)
@@ -498,7 +435,9 @@ void UpdatePlayerAttack()
                     // printf("%d\n", entities[entityIndex]->entityType);
                     if(entities[entityIndex]->entityType == HEALTH_HITBOX)
                     {
-                        SpawnHealthPickup(e->position);
+                        entity healthPickup = GetHealthPickupTemplate();
+                        SetStartPosition(&healthPickup, e->position);
+                        allocAndAddEntity(healthPickup);
                     }
                 }
                 Vector2 damageTextPosition = Vector2Add(result.hitPosition, Vector2(0, -20));
@@ -855,41 +794,6 @@ bool isMouseInside(entity* e)
     return a && b && c && d;
 }
 
-int* GetCurrentUpgrade(int upgradeIndex)
-{
-    switch(upgradeIndex)
-    {
-        case 0: return &currentHandgunUpgrade;
-        case 1: return &currentDashUpgrade;
-        case 2: return &currentMaxHealthUpgrade;
-    };
-    return NULL;
-}
-
-int GetUpgradesCount(int upgradeIndex)
-{
-    switch(upgradeIndex)
-    {
-        case 0: return handgunUpgradesCount;
-        case 1: return dashUpgradesCount;
-        case 2: return maxHealthUpgradesCount;
-    };
-    return INT_MAX;
-}
-
-int GetUpgradeCost(int upgradeIndex)
-{
-    int currentUpgrade = *GetCurrentUpgrade(upgradeIndex);
-    if(currentUpgrade == GetUpgradesCount(upgradeIndex)-1) { return INT_MAX; }
-    switch(upgradeIndex)
-    {
-        case 0: return handgunUpgradesPrices[currentUpgrade];
-        case 1: return dashUpgradesPrices[currentUpgrade];
-        case 2: return maxHealthUpgradesPrices[currentUpgrade];
-    };
-    return INT_MAX;
-}
-
 void Upgrade(entity* thisButton)
 {
     int upgradeIndex = thisButton->buttonIndex;
@@ -902,45 +806,6 @@ void Upgrade(entity* thisButton)
         (*currentUpgrade)++;
         SetUpgrades();
     }
-}
-
-int GetPrice(int buyIndex)
-{
-    switch(buyIndex)
-    {
-        case 0: return sharpenerPrice;
-        case 1: return shotgunPrice;
-        case 2: return sniperGunPrice;
-        case 3: return decoyPrice;
-        case 4: return freezingGrenadePrice;
-        case 5: return explosiveGrenadePrice;
-    };
-    return INT_MAX;
-}
-
-bool* IsBought(int buyIndex)
-{
-    switch(buyIndex)
-    {
-        case 0: return &isSharpenerUnlocked;
-        case 1: return &isShotgunUnlocked;
-        case 2: return &isSniperGunUnlocked;
-    };
-    return NULL;
-}
-
-entity* GetBuyItem(int buyIndex)
-{
-    switch(buyIndex)
-    {
-        case 0: return sharpener;
-        case 1: return shotgun;
-        case 2: return sniperGun;
-        case 3: return decoy;
-        case 4: return freezingGrenade;
-        case 5: return explosiveGrenade;
-    };
-    return NULL;
 }
 
 void BuyOrEquip(entity* thisButton)
@@ -1027,7 +892,7 @@ void DrawUpgraderUI()
 
             DrawText(detailsText, buttonPos.x + 24, buttonPos.y + 44, 12, RED);
 
-            if(isMouseInside(entities[i]) && IsMouseButtonDown(MOUSE_BUTTON_LEFT) && isUpgradeAvailable)
+            if(isMouseInside(entities[i]) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && isUpgradeAvailable)
             {
                 (*entities[i]->buttonCallback)(entities[i]);
             }
@@ -1086,36 +951,6 @@ void UpdateDamagedCooldown()
     }
 }
 
-void PrepareUpgrades()
-{
-    handgunUpgrades[0].attackCooldown = 0.5f;
-    handgunUpgrades[0].attackDamage = 10;
-
-    handgunUpgrades[1].attackCooldown = 0.25f;
-    handgunUpgrades[1].attackDamage = 20;
-    handgunUpgradesPrices[0] = 100;
-
-    dashUpgrades[0].dashCooldown = 2.0f;
-    dashUpgrades[0].numberOfDashes = 2;
-
-    dashUpgrades[1].dashCooldown = 1.0f;
-    dashUpgrades[1].numberOfDashes = 4;
-    dashUpgradesPrices[0] = 100;
-
-    maxHealthUpgrades[0] = 100;
-    maxHealthUpgrades[1] = 150;
-    maxHealthUpgradesPrices[0] = 100;
-}
-
-void SetUpgrades()
-{
-    playerTemplate.dashCooldown = dashUpgrades[currentDashUpgrade].dashCooldown;
-    playerTemplate.numberOfDashes = dashUpgrades[currentDashUpgrade].numberOfDashes;
-    playerTemplate.health = maxHealthUpgrades[currentMaxHealthUpgrade];
-    playerTemplate.attackCooldown = handgunUpgrades[currentHandgunUpgrade].attackCooldown;
-    playerTemplate.attackDamage = handgunUpgrades[currentHandgunUpgrade].attackDamage;
-}
-
 void SpawnHitPoint(Vector2 position)
 {
     entity hitPoint = GetHitPointTemplate();
@@ -1129,13 +964,6 @@ void SpawnDamageText(Vector2 position, int damage)
     SetStartPosition(&damageText, position);
     damageText.attackDamage = damage;
     allocAndAddEntity(damageText);
-}
-
-void SpawnHealthPickup(Vector2 position)
-{
-    entity healthPickup = GetHealthPickupTemplate();
-    SetStartPosition(&healthPickup, position);
-    allocAndAddEntity(healthPickup);
 }
 
 void SpawnUI()
