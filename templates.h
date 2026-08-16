@@ -24,8 +24,7 @@ entity GetPlayerTemplate()
     player.size = Vector2(20, 20);
     player.pivot = Vector2(0.5f, 0.5f);
     player.defaultColor = VIOLET;
-    player.entityType = PLAYER;
-    player.entityFlags |= SHOULD_UPDATE_PREVIOUS_POSITION;
+    player.type = PLAYER;
     player.speed = 2.5f;
     player.dashDistance = 128;
     player.numberOfDashes = 2;
@@ -43,8 +42,7 @@ entity GetBigEnemyTemplate()
     bigEnemy.size = Vector2(64, 64);
     bigEnemy.pivot = Vector2(0.5f, 0.5f);
     bigEnemy.defaultColor = DARKPURPLE;
-    bigEnemy.entityType = ENEMY;
-    bigEnemy.entityFlags |= SHOULD_UPDATE_COLLISION | SHOULD_UPDATE_PREVIOUS_POSITION;
+    bigEnemy.type = ENEMY;
     bigEnemy.speed = 0.5f;
     bigEnemy.attackDamage = 20;
     bigEnemy.attackCooldown = 0.5f;
@@ -68,8 +66,7 @@ entity GetFastEnemyTemplate()
     fastEnemy.size = Vector2(16, 16);
     fastEnemy.pivot = Vector2(0.5f, 0.5f);
     fastEnemy.defaultColor = DARKPURPLE;
-    fastEnemy.entityType = ENEMY;
-    fastEnemy.entityFlags |= SHOULD_UPDATE_COLLISION | SHOULD_UPDATE_PREVIOUS_POSITION;
+    fastEnemy.type = ENEMY;
     fastEnemy.speed = 3.0f;
     fastEnemy.attackDamage = 10;
     fastEnemy.attackCooldown = 0.25f;
@@ -92,7 +89,7 @@ entity GetHealthHitboxTemplate()
     entity healthHitbox = GetBasicTemplate();
     healthHitbox.pivot = Vector2(0.5f, 0.5f);
     healthHitbox.defaultColor = BLUE;
-    healthHitbox.entityType = HEALTH_HITBOX;
+    healthHitbox.type = HEALTH_HITBOX;
     healthHitbox.damagedCooldown = 0.125f;
     healthHitbox.damagedColor = RED;
     healthHitbox.templateIndex = 4;
@@ -204,7 +201,7 @@ entity GetUpgraderTemplate()
     upgrader.previousPosition = upgrader.position;
     upgrader.size = Vector2(32, 32);
     upgrader.pivot = Vector2(0.5f, 0.5f);
-    upgrader.entityType = UPGRADER;
+    upgrader.type = UPGRADER;
     upgrader.defaultColor = GOLD;
     return upgrader;
 }
@@ -212,8 +209,8 @@ entity GetUpgraderTemplate()
 entity GetUpgradeButtonTemplate()
 {
     entity upgradeButton = GetBasicTemplate();
-    upgradeButton.entityType = UI_UPGRADER_BUTTON;
-    upgradeButton.entityFlags |= IS_UI;
+    upgradeButton.type = UI_UPGRADER_BUTTON;
+    upgradeButton.isUI = true;
     upgradeButton.defaultColor = WHITE;
     upgradeButton.damagedCooldown = 0.125f;
     upgradeButton.damagedColor = GRAY;
@@ -225,8 +222,8 @@ entity GetUpgradeButtonTemplate()
 entity GetBuyButtonTemplate()
 {
     entity buyButton = GetBasicTemplate();
-    buyButton.entityType = UI_UPGRADER_BUY_BUTTON;
-    buyButton.entityFlags |= IS_UI;
+    buyButton.type = UI_UPGRADER_BUY_BUTTON;
+    buyButton.isUI = true;
     buyButton.defaultColor = WHITE;
     buyButton.damagedCooldown = 0.125f;
     buyButton.damagedColor = GRAY;
@@ -241,7 +238,7 @@ entity GetHealthPickupTemplate()
     newEntity.size = Vector2(8, 8);
     newEntity.pivot = Vector2(0.5f, 0.5f);
     newEntity.defaultColor = BLUE;
-    newEntity.entityType = HEALTH_PICKUP;
+    newEntity.type = HEALTH_PICKUP;
     return newEntity;
 }
 
@@ -249,8 +246,8 @@ entity GetDamageTextTemplate()
 {
     entity newEntity = GetBasicTemplate();
     newEntity.defaultColor = RED;
-    newEntity.entityType = UI_DAMAGE_TEXT;
-    newEntity.entityFlags |= IS_UI;
+    newEntity.type = UI_DAMAGE_TEXT;
+    newEntity.isUI = true;
     newEntity.speed = 16.0f;
     newEntity.destroyTimer = -1.0f;
     return newEntity;
@@ -272,7 +269,7 @@ entity GetPlacedDecoyTemplate()
     newEntity.size = Vector2(16, 16);
     newEntity.pivot = Vector2(0.5f, 0.5f);
     newEntity.defaultColor = GRAY;
-    newEntity.entityType = DECOY;
+    newEntity.type = DECOY;
     newEntity.destroyTimer = -10.0f;
     return newEntity;
 }
@@ -283,7 +280,7 @@ entity GetFreezingGrenadeVFXTemplate()
     newEntity.size = Vector2(100, 0);
     newEntity.pivot = Vector2(0.5f, 0.5f);
     newEntity.defaultColor = LIGHTGRAY;
-    newEntity.entityType = RADIUS_VFX;
+    newEntity.type = RADIUS_VFX;
     newEntity.destroyTimer = -0.1f;
     return newEntity;
 }
@@ -294,7 +291,7 @@ entity GetExplosiveGrenadeVFXTemplate()
     newEntity.size = Vector2(100, 0);
     newEntity.pivot = Vector2(0.5f, 0.5f);
     newEntity.defaultColor = RED;
-    newEntity.entityType = RADIUS_VFX;
+    newEntity.type = RADIUS_VFX;
     newEntity.destroyTimer = -0.1f;
     return newEntity;
 }

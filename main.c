@@ -14,8 +14,6 @@
 
 #define min(a, b) a > b ? b : a
 #define max(a, b) a > b ? a : b
-#define hasFlag(e, f) e->entityFlags & f
-#define hasFlagAtI(i, f) entities[i]->entityFlags & f
 #include "entity.h"
 #include "templates.h"
 
@@ -106,7 +104,7 @@ void addEntity(entity* newEntity)
         capacity *= 2;
         entities = realloc(entities, sizeof(entity*) * capacity);
     }
-    if(newEntity->entityType == ENEMY) { enemiesCount++; }
+    if(newEntity->type == ENEMY) { enemiesCount++; }
 }
 
 void removeEntity(int entityIndex)
@@ -120,7 +118,7 @@ void removeEntity(int entityIndex)
         entities[entityIndex]->parent->child = NULL;
     }
 
-    if(entities[entityIndex]->entityType == ENEMY)
+    if(entities[entityIndex]->type == ENEMY)
     {
         enemiesCount--;
         if(enemiesCount <= 0)
@@ -164,7 +162,7 @@ bool isEntityColliding(int entityIndex, uint entityTypeMask)
     for(int i = 0; i < firstFreeIndex; i++)
     {
         if(i == entityIndex) { continue; }
-        if((entities[i]->entityType & entityTypeMask) == 0) { continue; }
+        if((entities[i]->type & entityTypeMask) == 0) { continue; }
         if(areEntitiesColliding(entities[entityIndex], entities[i])) { return true; }
     }
     return false;
@@ -207,7 +205,7 @@ RayCastHitResult RayCastHit(Vector2 r1, Vector2 r2, uint entityTypeMask)
     int closestEntityIndex = -1;
     for(int i = 0; i < firstFreeIndex; i++)
     {
-        if((entities[i]->entityType & entityTypeMask) == 0) { continue; }
+        if((entities[i]->type & entityTypeMask) == 0) { continue; }
 
         // A----B
         // |    |
@@ -254,7 +252,7 @@ RayCastAllHitsResult RayCastAllHits(Vector2 r1, Vector2 r2, uint entityTypeMask,
     int indexesCount = 0;
     for(int i = 0; i < firstFreeIndex; i++)
     {
-        if((entities[i]->entityType & entityTypeMask) == 0) { continue; }
+        if((entities[i]->type & entityTypeMask) == 0) { continue; }
 
         // A----B
         // |    |
@@ -299,7 +297,7 @@ void UpdatePlayerMovement()
 {
     for(int i = 0; i < firstFreeIndex; i++)
     {
-        if(entities[i]->entityType != PLAYER) { continue; }
+        if(entities[i]->type != PLAYER) { continue; }
         entity* player = entities[i];
         int speed = player->speed;
         int dashXDirection = 0;
@@ -361,6 +359,7 @@ void UpdatePlayerMovement()
                 player->dashCooldown = GetTemplate(player->templateIndex).dashCooldown;
             }
         }
+        player->previousPosition = player->position;
     }
 }
 
@@ -368,7 +367,7 @@ void UpdatePlayerAttack()
 {
     for(int i = 0; i < firstFreeIndex; i++)
     {
-        if(entities[i]->entityType != PLAYER) { continue; }
+        if(entities[i]->type != PLAYER) { continue; }
         entity* player = entities[i];
         if(player->attackCooldown > 0)
         {
@@ -424,7 +423,7 @@ void UpdatePlayerAttack()
                 SpawnHitPoint(result.hitPosition);
                 int entityIndex = result.entityIndex;
                 entity* e = entities[entityIndex];
-                if(entities[entityIndex]->entityType == HEALTH_HITBOX)
+                if(entities[entityIndex]->type == HEALTH_HITBOX)
                 {
                     entities[entityIndex]->damagedCooldown = GetTemplate(entities[entityIndex]->templateIndex).damagedCooldown;
                     e = entities[entityIndex]->parent;
@@ -438,7 +437,7 @@ void UpdatePlayerAttack()
                 if(e->health <= 0)
                 {
                     // printf("%d\n", entities[entityIndex]->entityType);
-                    if(entities[entityIndex]->entityType == HEALTH_HITBOX)
+                    if(entities[entityIndex]->type == HEALTH_HITBOX)
                     {
                         entity healthPickup = GetHealthPickupTemplate();
                         SetStartPosition(&healthPickup, e->position);
@@ -474,7 +473,7 @@ void UpdatePlayerAttack()
                     SpawnHitPoint(result.hitPosition);
                     int entityIndex = result.entityIndex;
                     entity* e = entities[entityIndex];
-                    if(entities[entityIndex]->entityType == HEALTH_HITBOX)
+                    if(entities[entityIndex]->type == HEALTH_HITBOX)
                     {
                         entities[entityIndex]->damagedCooldown = GetTemplate(entities[entityIndex]->templateIndex).damagedCooldown;
                         e = entities[entityIndex]->parent;
@@ -488,7 +487,7 @@ void UpdatePlayerAttack()
                     if(e->health <= 0)
                     {
                         // printf("%d\n", entities[entityIndex]->entityType);
-                        if(entities[entityIndex]->entityType == HEALTH_HITBOX)
+                        if(entities[entityIndex]->type == HEALTH_HITBOX)
                         {
                             entity healthPickup = GetHealthPickupTemplate();
                             SetStartPosition(&healthPickup, e->position);
@@ -519,7 +518,7 @@ void UpdatePlayerAttack()
             {
                 for(int j = 0; j < firstFreeIndex; j++)
                 {
-                    if(entities[j]->entityType != ENEMY) { continue; }
+                    if(entities[j]->type != ENEMY) { continue; }
                     float dist = getSqrDistance(GetMousePosition(), entities[j]->position);
                     if(dist > equippedGrenade->attackRange*equippedGrenade->attackRange ) { continue; }
                     if(equippedGrenade == freezingGrenade)
@@ -547,7 +546,7 @@ void UpdatePlayerAttack()
         {
             for(int j = 0; j < firstFreeIndex; j++)
             {
-                if(entities[j]->entityType != ENEMY) { continue; }
+                if(entities[j]->type != ENEMY) { continue; }
                 Vector2 offset = Vector2Subtract(entities[j]->position, entities[i]->position);
                 float multiplier = exploder->attackDamage / Vector2Length(offset);
                 float strength = max((float)exploder->attackRange - Vector2Length(offset), 0);
@@ -564,7 +563,7 @@ void DeleteDeadEnemies()
 {
     for(int i = 0; i < firstFreeIndex; i++)
     {
-        if(entities[i]->entityType != ENEMY) { continue; }
+        if(entities[i]->type != ENEMY) { continue; }
         if(entities[i]->health <= 0)
         {
             playerCash += entities[i]->cashDropAmount;
@@ -578,12 +577,12 @@ void UpdateEnemiesTarget()
 {
     for(int i = 0; i < firstFreeIndex; i++)
     {
-        if(entities[i]->entityType != ENEMY) { continue; }
+        if(entities[i]->type != ENEMY) { continue; }
         float minDist = FLT_MAX;
         int minIndex = -1;
         for(int j = 0; j < firstFreeIndex; j++)
         {
-            if(entities[j]->entityType != PLAYER && entities[j]->entityType != DECOY) { continue; }
+            if(entities[j]->type != PLAYER && entities[j]->type != DECOY) { continue; }
             float dist = getSqrDistance(entities[i]->position, entities[j]->position);
             if(dist > entities[i]->fovRange*entities[i]->fovRange) { continue; }
             if(dist < minDist)
@@ -600,7 +599,7 @@ void UpdateEnemiesRegeneration()
 {
     for(int i = 0; i < firstFreeIndex; i++)
     {
-        if(entities[i]->entityType != ENEMY) { continue; }
+        if(entities[i]->type != ENEMY) { continue; }
         if(!entities[i]->isRegenerating) { continue; }
 
         entities[i]->stamina += GetFrameTime() * entities[i]->staminaRegenerationSpeed;
@@ -615,7 +614,7 @@ void UpdateEnemiesMovement()
 {
     for(int i = 0; i < firstFreeIndex; i++)
     {
-        if(entities[i]->entityType != ENEMY) { continue; }
+        if(entities[i]->type != ENEMY) { continue; }
         if(entities[i]->isRegenerating) { continue; }
         if(entities[i]->target == NULL) { continue; }
 
@@ -673,10 +672,10 @@ void UpdateEnemiesAttack()
 {
     for(int i = 0; i < firstFreeIndex; i++)
     {
-        if(entities[i]->entityType != ENEMY) { continue; }
+        if(entities[i]->type != ENEMY) { continue; }
 
         if(entities[i]->target == NULL || entities[i]->isRegenerating) { continue; }
-        if(entities[i]->target->entityType == DECOY) { continue; }
+        if(entities[i]->target->type == DECOY) { continue; }
         entity* player = entities[i]->target;
         if(getSqrDistance(player->position, entities[i]->position) <= entities[i]->attackRange*entities[i]->attackRange)
         {
@@ -707,7 +706,7 @@ void UpdateHealthHitBoxes()
 {
     for(int i = 0; i < firstFreeIndex; i++)
     {
-        if(entities[i]->entityType != HEALTH_HITBOX) { continue; }
+        if(entities[i]->type != HEALTH_HITBOX) { continue; }
         if(entities[i]->parent == NULL) { removeEntity(i); continue; }
         Vector2 offset = entities[i]->previousPosition;
         if(entities[i]->parent->isFlipped)
@@ -722,7 +721,7 @@ void UpdateHealthPickups()
 {
     for(int i = 0; i < firstFreeIndex; i++)
     {
-        if(entities[i]->entityType != HEALTH_PICKUP) { continue; }
+        if(entities[i]->type != HEALTH_PICKUP) { continue; }
         float dist = getSqrDistance(entities[i]->position, player->position);
         if(dist < 72.0f)
         {
@@ -758,7 +757,7 @@ void UpdateUpgrader()
 {
     for(int i = 0; i < firstFreeIndex; i++)
     {
-        if(entities[i]->entityType != UPGRADER) { continue; }
+        if(entities[i]->type != UPGRADER) { continue; }
         if(nextWaveTimer <= 0) { entities[i]->isEnabled = false; continue; }
         else
         {
@@ -798,8 +797,8 @@ void UpdateDamageTexts()
 {
     for(int i = 0; i < firstFreeIndex; i++)
     {
-        if(entities[i]->entityFlags & IS_UI) { continue; }
-        if(entities[i]->entityType == UI_DAMAGE_TEXT)
+        if(!entities[i]->isUI) { continue; }
+        if(entities[i]->type == UI_DAMAGE_TEXT)
         {
             entities[i]->position.y -= entities[i]->speed * GetFrameTime();
         }
@@ -911,8 +910,8 @@ void DrawDamageTexts()
 {
     for(int i = 0; i < firstFreeIndex; i++)
     {
-        if(~entities[i]->entityFlags & IS_UI) { continue; }
-        if(entities[i]->entityType == UI_DAMAGE_TEXT)
+        if(!entities[i]->isUI) { continue; }
+        if(entities[i]->type == UI_DAMAGE_TEXT)
         {
             DrawText(TextFormat("-%d", entities[i]->attackDamage), entities[i]->position.x, entities[i]->position.y, 20, entities[i]->defaultColor);
             continue;
@@ -925,14 +924,14 @@ void DrawUpgraderUI()
     if(!isUpgraderUIActive) { return; }
     for(int i = 0; i < firstFreeIndex; i++)
     {
-        if(~entities[i]->entityFlags & IS_UI) { continue; }
-        if(entities[i]->entityType == UI_UPGRADER_IMAGE)
+        if(!entities[i]->isUI) { continue; }
+        if(entities[i]->type == UI_UPGRADER_IMAGE)
         {
             DrawRectangleV(entities[i]->position, entities[i]->size, entities[i]->defaultColor);
             continue;
         }
 
-        if(entities[i]->entityType == UI_UPGRADER_BUTTON)
+        if(entities[i]->type == UI_UPGRADER_BUTTON)
         {
             int upgradeIndex = entities[i]->buttonIndex;
             bool isUpgradeAvailable = GetUpgradeCost(upgradeIndex) <= playerCash;
@@ -998,7 +997,7 @@ void DrawRadiusVFX()
 {
     for(int i = 0; i < firstFreeIndex; i++)
     {
-        if(entities[i]->entityType != RADIUS_VFX) { continue; }
+        if(entities[i]->type != RADIUS_VFX) { continue; }
         DrawCircleV(entities[i]->position, entities[i]->size.x, entities[i]->defaultColor);
     }
 }
@@ -1014,11 +1013,11 @@ void UpdateDamagedCooldown()
     }
 }
 
-void UpdateVelocity()
+void UpdateEnemiesVelocity()
 {
     for(int i = 0; i < firstFreeIndex; i++)
     {
-        if(~hasFlag(entities[i], SHOULD_UPDATE_COLLISION)) { continue; }
+        if(entities[i]->type != ENEMY) { continue; }
         entities[i]->position = Vector2Add(entities[i]->position, Vector2Multiply(entities[i]->velocity, Vector2(GetFrameTime(), GetFrameTime())));
         entities[i]->velocity = Vector2Subtract(entities[i]->velocity, Vector2Multiply(entities[i]->velocity, Vector2(GetFrameTime() * entities[i]->drag, GetFrameTime() * entities[i]->drag)));
         if(isEntityColliding(i, ENEMY | PLAYER))
@@ -1031,14 +1030,6 @@ void UpdateVelocity()
         {
             entities[i]->isRegenerating = true;
         }
-    }
-}
-
-void UpdatePreviousPosition()
-{
-    for(int i = 0; i < firstFreeIndex; i++)
-    {
-        if(~entities[i]->entityFlags & SHOULD_UPDATE_PREVIOUS_POSITION) { continue; }
         entities[i]->previousPosition = entities[i]->position;
     }
 }
@@ -1066,8 +1057,8 @@ void SpawnUI()
     entity upgraderUIBackground = GetBasicTemplate();
     upgraderUIBackground.size = Vector2(1280, 720);
     upgraderUIBackground.defaultColor = (Color){128, 128, 128, 128};
-    upgraderUIBackground.entityType = UI_UPGRADER_IMAGE;
-    upgraderUIBackground.entityFlags |= IS_UI;
+    upgraderUIBackground.type = UI_UPGRADER_IMAGE;
+    upgraderUIBackground.isUI = true;
     allocAndAddEntity(upgraderUIBackground);
 
     entity upgradeButtonTemplate = GetUpgradeButtonTemplate();
@@ -1199,10 +1190,9 @@ int main()
             UpdateEnemiesRegeneration();
             UpdateEnemiesMovement();
             UpdateEnemiesAttack();
-            UpdateVelocity();
+            UpdateEnemiesVelocity();
             UpdateHealthHitBoxes();
             UpdateHealthPickups();
-            UpdatePreviousPosition();
             if(IsKeyPressed(KEY_K) && nextWaveTimer > 0) { nextWaveTimer = GetFrameTime(); }
             UpdateWaves();
             UpdateUpgrader();
@@ -1211,8 +1201,8 @@ int main()
             UpdateDestroyTimer();
             for(int i = 0; i < firstFreeIndex; i++)
             {
-                if(!entities[i]->isEnabled || ~hasFlag(entities[i], IS_UI)) { continue; }
-                if(entities[i]->entityType == RADIUS_VFX) { continue; }
+                if(!entities[i]->isEnabled || entities[i]->isUI) { continue; }
+                if(entities[i]->type == RADIUS_VFX) { continue; }
                 //printf("i: %d\n", i);
                 // printf("entityType: %d\n", entities[i]->entityType);
                 Vector2 startPos = GetEntityCorner(entities[i]);
