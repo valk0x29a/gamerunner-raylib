@@ -25,6 +25,7 @@ entity GetPlayerTemplate()
     player.pivot = Vector2(0.5f, 0.5f);
     player.defaultColor = VIOLET;
     player.entityType = PLAYER;
+    player.entityFlags |= SHOULD_UPDATE_PREVIOUS_POSITION;
     player.speed = 2.5f;
     player.dashDistance = 128;
     player.numberOfDashes = 2;
@@ -43,6 +44,7 @@ entity GetBigEnemyTemplate()
     bigEnemy.pivot = Vector2(0.5f, 0.5f);
     bigEnemy.defaultColor = DARKPURPLE;
     bigEnemy.entityType = ENEMY;
+    bigEnemy.entityFlags |= SHOULD_UPDATE_COLLISION | SHOULD_UPDATE_PREVIOUS_POSITION;
     bigEnemy.speed = 0.5f;
     bigEnemy.attackDamage = 20;
     bigEnemy.attackCooldown = 0.5f;
@@ -56,7 +58,6 @@ entity GetBigEnemyTemplate()
     bigEnemy.flipTimer = 2.0f;
     bigEnemy.cashDropAmount = 50;
     bigEnemy.templateIndex = 2;
-    bigEnemy.isCollisionActive = true;
     bigEnemy.drag = 16.0f;
     return bigEnemy;
 }
@@ -68,6 +69,7 @@ entity GetFastEnemyTemplate()
     fastEnemy.pivot = Vector2(0.5f, 0.5f);
     fastEnemy.defaultColor = DARKPURPLE;
     fastEnemy.entityType = ENEMY;
+    fastEnemy.entityFlags |= SHOULD_UPDATE_COLLISION | SHOULD_UPDATE_PREVIOUS_POSITION;
     fastEnemy.speed = 3.0f;
     fastEnemy.attackDamage = 10;
     fastEnemy.attackCooldown = 0.25f;
@@ -81,7 +83,6 @@ entity GetFastEnemyTemplate()
     fastEnemy.flipTimer = 0.5f;
     fastEnemy.cashDropAmount = 25;
     fastEnemy.templateIndex = 3;
-    fastEnemy.isCollisionActive = true;
     fastEnemy.drag = 8.0f;
     return fastEnemy;
 }
@@ -212,10 +213,10 @@ entity GetUpgradeButtonTemplate()
 {
     entity upgradeButton = GetBasicTemplate();
     upgradeButton.entityType = UI_UPGRADER_BUTTON;
+    upgradeButton.entityFlags |= IS_UI;
     upgradeButton.defaultColor = WHITE;
     upgradeButton.damagedCooldown = 0.125f;
     upgradeButton.damagedColor = GRAY;
-    upgradeButton.isUI = true;
     upgradeButton.buttonCallback = Upgrade;
     upgradeButton.templateIndex = 9;
     return upgradeButton;
@@ -225,10 +226,10 @@ entity GetBuyButtonTemplate()
 {
     entity buyButton = GetBasicTemplate();
     buyButton.entityType = UI_UPGRADER_BUY_BUTTON;
+    buyButton.entityFlags |= IS_UI;
     buyButton.defaultColor = WHITE;
     buyButton.damagedCooldown = 0.125f;
     buyButton.damagedColor = GRAY;
-    buyButton.isUI = true;
     buyButton.buttonCallback = BuyOrEquip;
     buyButton.templateIndex = 10;
     return buyButton;
@@ -249,9 +250,9 @@ entity GetDamageTextTemplate()
     entity newEntity = GetBasicTemplate();
     newEntity.defaultColor = RED;
     newEntity.entityType = UI_DAMAGE_TEXT;
+    newEntity.entityFlags |= IS_UI;
     newEntity.speed = 16.0f;
     newEntity.destroyTimer = -1.0f;
-    newEntity.isUI = true;
     return newEntity;
 }
 

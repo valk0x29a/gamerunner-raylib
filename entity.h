@@ -15,6 +15,10 @@
 #define DECOY 1 << 10
 #define RADIUS_VFX 1 << 11
 
+#define IS_UI 1 << 1
+#define SHOULD_UPDATE_COLLISION 1 << 2
+#define SHOULD_UPDATE_PREVIOUS_POSITION 1 << 3
+
 typedef struct entity
 {
     Vector2 position;
@@ -23,6 +27,7 @@ typedef struct entity
     Vector2 previousPosition;
     Color defaultColor;
     uint entityType;
+    uint entityFlags;
     float speed;
     int dashDistance;
     int numberOfDashes;
@@ -42,7 +47,6 @@ typedef struct entity
     float flipTimer;
     bool isFlipped;
     bool isEnabled;
-    bool isUI;
     void (*buttonCallback)(struct entity* thisButton);
     int cashDropAmount;
     int buttonIndex;
@@ -56,5 +60,4 @@ typedef struct entity
     int templateIndex;
     Vector2 velocity;
     float drag;
-    bool isCollisionActive;
 } entity;

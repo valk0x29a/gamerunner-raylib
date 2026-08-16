@@ -57,6 +57,16 @@ int firstFreeIndex = 0;
 int capacity = 4;
 entity** entities;
 
+bool hasEntityFlag(entity* e, uint flag)
+{
+    return (e->entityFlags & flag) != 0;
+}
+
+bool hasEntityFlagI(int index, uint flag)
+{
+    return (entities[index]->entityFlags & flag) != 0;
+}
+
 entity* equippedWeapon;
 entity* handgun; // always at first slot
 entity* inventorySecondSlot = NULL;
@@ -359,8 +369,6 @@ void UpdatePlayerMovement()
                 player->dashCooldown = GetTemplate(player->templateIndex).dashCooldown;
             }
         }
-        player->previousPosition = player->position;
-        //printf("x: %f y: %f \n", player->position.x, player->position.y);
     }
 }
 
@@ -798,7 +806,7 @@ void UpdateDamageTexts()
 {
     for(int i = 0; i < firstFreeIndex; i++)
     {
-        if(!entities[i]->isUI) { continue; }
+        if(entities[i]->entityFlags & IS_UI) { continue; }
         if(entities[i]->entityType == UI_DAMAGE_TEXT)
         {
             entities[i]->position.y -= entities[i]->speed * GetFrameTime();
@@ -911,7 +919,7 @@ void DrawDamageTexts()
 {
     for(int i = 0; i < firstFreeIndex; i++)
     {
-        if(!entities[i]->isUI) { continue; }
+        if(!hasEntityFlagI(i, IS_UI)) { continue; }
         if(entities[i]->entityType == UI_DAMAGE_TEXT)
         {
             DrawText(TextFormat("-%d", entities[i]->attackDamage), entities[i]->position.x, entities[i]->position.y, 20, entities[i]->defaultColor);
@@ -925,7 +933,7 @@ void DrawUpgraderUI()
     if(!isUpgraderUIActive) { return; }
     for(int i = 0; i < firstFreeIndex; i++)
     {
-        if(!entities[i]->isUI) { continue; }
+        if(!hasEntityFlagI(i, IS_UI)) { continue; }
         if(entities[i]->entityType == UI_UPGRADER_IMAGE)
         {
             DrawRectangleV(entities[i]->position, entities[i]->size, entities[i]->defaultColor);
@@ -1014,11 +1022,11 @@ void UpdateDamagedCooldown()
     }
 }
 
-void UpdateEnemyVelocity()
+void UpdateVelocity()
 {
     for(int i = 0; i < firstFreeIndex; i++)
     {
-        if(entities[i]->entityType != ENEMY) { continue; }
+        if(!hasEntityFlagI(i, SHOULD_UPDATE_COLLISION)) { continue; }
         entities[i]->position = Vector2Add(entities[i]->position, Vector2Multiply(entities[i]->velocity, Vector2(GetFrameTime(), GetFrameTime())));
         entities[i]->velocity = Vector2Subtract(entities[i]->velocity, Vector2Multiply(entities[i]->velocity, Vector2(GetFrameTime() * entities[i]->drag, GetFrameTime() * entities[i]->drag)));
         if(isEntityColliding(i, ENEMY | PLAYER))
@@ -1031,7 +1039,14 @@ void UpdateEnemyVelocity()
         {
             entities[i]->isRegenerating = true;
         }
+    }
+}
 
+void UpdatePreviousPosition()
+{
+    for(int i = 0; i < firstFreeIndex; i++)
+    {
+        if(!hasEntityFlagI(i, SHOULD_UPDATE_PREVIOUS_POSITION)) { continue; }
         entities[i]->previousPosition = entities[i]->position;
     }
 }
@@ -1060,7 +1075,7 @@ void SpawnUI()
     upgraderUIBackground.size = Vector2(1280, 720);
     upgraderUIBackground.defaultColor = (Color){128, 128, 128, 128};
     upgraderUIBackground.entityType = UI_UPGRADER_IMAGE;
-    upgraderUIBackground.isUI = true;
+    upgraderUIBackground.entityFlags |= IS_UI;
     allocAndAddEntity(upgraderUIBackground);
 
     entity upgradeButtonTemplate = GetUpgradeButtonTemplate();
@@ -1192,9 +1207,10 @@ int main()
             UpdateEnemiesRegeneration();
             UpdateEnemiesMovement();
             UpdateEnemiesAttack();
-            UpdateEnemyVelocity();
+            UpdateVelocity();
             UpdateHealthHitBoxes();
             UpdateHealthPickups();
+            UpdatePreviousPosition();
             if(IsKeyPressed(KEY_K) && nextWaveTimer > 0) { nextWaveTimer = GetFrameTime(); }
             UpdateWaves();
             UpdateUpgrader();
@@ -1203,7 +1219,7 @@ int main()
             UpdateDestroyTimer();
             for(int i = 0; i < firstFreeIndex; i++)
             {
-                if(!entities[i]->isEnabled || entities[i]->isUI) { continue; }
+                if(!entities[i]->isEnabled || entities[i]->entityFlags & IS_UI) { continue; }
                 if(entities[i]->entityType == RADIUS_VFX) { continue; }
                 //printf("i: %d\n", i);
                 // printf("entityType: %d\n", entities[i]->entityType);
