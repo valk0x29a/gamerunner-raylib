@@ -14,6 +14,7 @@
 #define UI_DAMAGE_TEXT 1 << 8
 #define UI_UPGRADER_BUY_BUTTON 1 << 9
 #define DECOY 1 << 10
+#define RADIUS_VFX 1 << 11
 
 typedef struct entity
 {
@@ -306,6 +307,28 @@ entity GetPlacedDecoyTemplate()
     newEntity.defaultColor = GRAY;
     newEntity.entityType = DECOY;
     newEntity.destroyTimer = -10.0f;
+    return newEntity;
+}
+
+entity GetFreezingGrenadeVFXTemplate()
+{
+    entity newEntity = GetBasicTemplate();
+    newEntity.size = Vector2(100, 0);
+    newEntity.pivot = Vector2(0.5f, 0.5f);
+    newEntity.defaultColor = LIGHTGRAY;
+    newEntity.entityType = RADIUS_VFX;
+    newEntity.destroyTimer = -0.1f;
+    return newEntity;
+}
+
+entity GetExplosiveGrenadeVFXTemplate()
+{
+    entity newEntity = GetBasicTemplate();
+    newEntity.size = Vector2(100, 0);
+    newEntity.pivot = Vector2(0.5f, 0.5f);
+    newEntity.defaultColor = RED;
+    newEntity.entityType = RADIUS_VFX;
+    newEntity.destroyTimer = -0.1f;
     return newEntity;
 }
 

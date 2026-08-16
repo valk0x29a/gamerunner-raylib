@@ -530,12 +530,18 @@ void UpdatePlayerAttack()
                     if(equippedGrenade == freezingGrenade)
                     {
                         entities[j]->stamina += equippedGrenade->stamina;
+                        entity freezingGrenadeVFX = GetFreezingGrenadeVFXTemplate();
+                        freezingGrenadeVFX.position = GetMousePosition();
+                        allocAndAddEntity(freezingGrenadeVFX);
                     }
                     if(equippedGrenade == explosiveGrenade)
                     {
                         entities[j]->health -= equippedGrenade->attackDamage;
                         Vector2 damageTextPosition = Vector2Add(entities[j]->position, Vector2(0, -20));
                         SpawnDamageText(damageTextPosition, equippedWeapon->attackDamage);
+                        entity explosiveGrenadeVFX = GetExplosiveGrenadeVFXTemplate();
+                        explosiveGrenadeVFX.position = GetMousePosition();
+                        allocAndAddEntity(explosiveGrenadeVFX);
                     }
                 }
             }
@@ -1060,6 +1066,15 @@ void DrawUpgraderUI()
     }
 }
 
+void DrawRadiusVFX()
+{
+    for(int i = 0; i < firstFreeIndex; i++)
+    {
+        if(entities[i]->entityType != RADIUS_VFX) { continue; }
+        DrawCircleV(entities[i]->position, entities[i]->size.x, entities[i]->defaultColor);
+    }
+}
+
 void UpdateDamagedCooldown()
 {
     for(int i = 0; i < firstFreeIndex; i++)
@@ -1265,6 +1280,7 @@ int main()
             for(int i = 0; i < firstFreeIndex; i++)
             {
                 if(!entities[i]->isEnabled || entities[i]->isUI) { continue; }
+                if(entities[i]->entityType == RADIUS_VFX) { continue; }
                 //printf("i: %d\n", i);
                 // printf("entityType: %d\n", entities[i]->entityType);
                 Vector2 startPos = GetEntityCorner(entities[i]);
@@ -1278,6 +1294,7 @@ int main()
                     DrawRectangleV(startPos, entities[i]->size, outputColor);
                 }
             }
+            DrawRadiusVFX();
             DrawPlayerHUD();
             DrawDamageTexts();
             DrawUpgraderUI();
