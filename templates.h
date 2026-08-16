@@ -2,6 +2,7 @@
 #include <sys/types.h>
 
 #define Vector2(x,y) (Vector2){x, y}
+
 #include "entity.h"
 // NOLINTBEGIN(misc-definitions-in-headers)
 

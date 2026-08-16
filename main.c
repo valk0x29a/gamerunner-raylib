@@ -6,12 +6,13 @@
 #include <stdio.h>
 #include <string.h>
 
-#define NEXT_WAVE_TIMER 5.0f
+#define NEXT_WAVE_TIMER 10.0f
 
 #define Vector2(x,y) (Vector2){x, y}
 
 #define min(a, b) a > b ? b : a
 #define max(a, b) a > b ? a : b
+#include "entity.h"
 #include "templates.h"
 
 void SetStartPosition(entity* e, Vector2 position)
@@ -764,6 +765,7 @@ void DrawPlayerHUD()
     if(nextWaveTimer > 0)
     {
         waveText = TextFormat("Next Wave starts in: %.1fs", nextWaveTimer);
+        DrawText("Press 'K' to skip the Interwave", 325, 40, 10, RED);
     }
     else
     {
@@ -1100,6 +1102,7 @@ int main()
             UpdateEnemiesAttack();
             UpdateHealthHitBoxes();
             UpdateHealthPickups();
+            if(IsKeyPressed(KEY_K) && nextWaveTimer > 0) { nextWaveTimer = GetFrameTime(); }
             UpdateWaves();
             UpdateUpgrader();
             UpdateDamageTexts();
