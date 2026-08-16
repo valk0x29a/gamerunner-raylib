@@ -14,6 +14,8 @@
 
 #define min(a, b) a > b ? b : a
 #define max(a, b) a > b ? a : b
+#define hasFlag(e, f) e->entityFlags & f
+#define hasFlagAtI(i, f) entities[i]->entityFlags & f
 #include "entity.h"
 #include "templates.h"
 
@@ -56,16 +58,6 @@ typedef struct RayCastAllHitsResult
 int firstFreeIndex = 0;
 int capacity = 4;
 entity** entities;
-
-bool hasEntityFlag(entity* e, uint flag)
-{
-    return (e->entityFlags & flag) != 0;
-}
-
-bool hasEntityFlagI(int index, uint flag)
-{
-    return (entities[index]->entityFlags & flag) != 0;
-}
 
 entity* equippedWeapon;
 entity* handgun; // always at first slot
@@ -919,7 +911,7 @@ void DrawDamageTexts()
 {
     for(int i = 0; i < firstFreeIndex; i++)
     {
-        if(!hasEntityFlagI(i, IS_UI)) { continue; }
+        if(~entities[i]->entityFlags & IS_UI) { continue; }
         if(entities[i]->entityType == UI_DAMAGE_TEXT)
         {
             DrawText(TextFormat("-%d", entities[i]->attackDamage), entities[i]->position.x, entities[i]->position.y, 20, entities[i]->defaultColor);
@@ -933,7 +925,7 @@ void DrawUpgraderUI()
     if(!isUpgraderUIActive) { return; }
     for(int i = 0; i < firstFreeIndex; i++)
     {
-        if(!hasEntityFlagI(i, IS_UI)) { continue; }
+        if(~entities[i]->entityFlags & IS_UI) { continue; }
         if(entities[i]->entityType == UI_UPGRADER_IMAGE)
         {
             DrawRectangleV(entities[i]->position, entities[i]->size, entities[i]->defaultColor);
@@ -1026,7 +1018,7 @@ void UpdateVelocity()
 {
     for(int i = 0; i < firstFreeIndex; i++)
     {
-        if(!hasEntityFlagI(i, SHOULD_UPDATE_COLLISION)) { continue; }
+        if(~hasFlag(entities[i], SHOULD_UPDATE_COLLISION)) { continue; }
         entities[i]->position = Vector2Add(entities[i]->position, Vector2Multiply(entities[i]->velocity, Vector2(GetFrameTime(), GetFrameTime())));
         entities[i]->velocity = Vector2Subtract(entities[i]->velocity, Vector2Multiply(entities[i]->velocity, Vector2(GetFrameTime() * entities[i]->drag, GetFrameTime() * entities[i]->drag)));
         if(isEntityColliding(i, ENEMY | PLAYER))
@@ -1046,7 +1038,7 @@ void UpdatePreviousPosition()
 {
     for(int i = 0; i < firstFreeIndex; i++)
     {
-        if(!hasEntityFlagI(i, SHOULD_UPDATE_PREVIOUS_POSITION)) { continue; }
+        if(~entities[i]->entityFlags & SHOULD_UPDATE_PREVIOUS_POSITION) { continue; }
         entities[i]->previousPosition = entities[i]->position;
     }
 }
@@ -1219,7 +1211,7 @@ int main()
             UpdateDestroyTimer();
             for(int i = 0; i < firstFreeIndex; i++)
             {
-                if(!entities[i]->isEnabled || entities[i]->entityFlags & IS_UI) { continue; }
+                if(!entities[i]->isEnabled || ~hasFlag(entities[i], IS_UI)) { continue; }
                 if(entities[i]->entityType == RADIUS_VFX) { continue; }
                 //printf("i: %d\n", i);
                 // printf("entityType: %d\n", entities[i]->entityType);
