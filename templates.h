@@ -199,7 +199,7 @@ entity GetExplosiveGrenadeTemplate()
 entity GetUpgraderTemplate()
 {
     entity upgrader = GetBasicTemplate();
-    upgrader.position = Vector2(400, 250);
+    upgrader.position = Vector2(640, 320);
     upgrader.previousPosition = upgrader.position;
     upgrader.size = Vector2(32, 32);
     upgrader.pivot = Vector2(0.5f, 0.5f);

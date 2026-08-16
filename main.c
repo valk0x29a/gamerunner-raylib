@@ -825,23 +825,23 @@ void DrawPlayerHUD()
     if(nextWaveTimer > 0)
     {
         waveText = TextFormat("Next Wave starts in: %.1fs", nextWaveTimer);
-        DrawText("Press 'K' to skip the Interwave", 325, 40, 10, RED);
+        DrawText("Press 'K' to skip the Interwave", 425, 60, 20, RED);
     }
     else
     {
         waveText = TextFormat("Current Wave: %d", currentWave);
     }
-    DrawText(waveText, 300, 20, 20, RED);
+    DrawText(waveText, 375, 20, 40, RED);
 
-    DrawText(TextFormat("Number of Dashes: %d", player->numberOfDashes), 300, 400, 20, RED);
-    DrawText(TextFormat("Player Health: %d", player->health), 25, 415, 20, RED);
+    DrawText(TextFormat("Number of Dashes: %d", player->numberOfDashes), 550, 670, 20, RED);
+    DrawText(TextFormat("Player Health: %d", player->health), 25, 685, 20, RED);
     DrawText(TextFormat("Cash: %d", playerCash), 25, 25, 20, RED);
     const char* text = player->reloadCooldown > 0 ? "Reloading..." : TextFormat("Ammo: %d/%d", equippedWeapon->ammoCount, GetTemplate(equippedWeapon->templateIndex).ammoCount);
-    DrawText(text, 675, 415, 20, RED);
-    DrawText(equippedWeapon == handgun ? "Handgun" : GetItemName(equippedWeapon->buttonIndex), 675, 390, 20, RED);
+    DrawText(text, 1155, 685, 20, RED);
+    DrawText(equippedWeapon == handgun ? "Handgun" : GetItemName(equippedWeapon->buttonIndex), 1155, 660, 20, RED);
     if(equippedGrenade == NULL) { return; }
-    DrawText(TextFormat("Equipped Grenade:\n %s", GetGrenadeText()), 600, 325, 20, RED);
-    DrawText(TextFormat("Count: %d", equippedGrenade->count), 645, 365, 20, RED);
+    DrawText(TextFormat("Equipped Grenade:\n %s", GetGrenadeText()), 1080, 595, 20, RED);
+    DrawText(TextFormat("Count: %d", equippedGrenade->count), 1125, 635, 20, RED);
 }
 
 bool isMouseInside(entity* e)
@@ -1051,51 +1051,54 @@ void SpawnDamageText(Vector2 position, int damage)
     allocAndAddEntity(damageText);
 }
 
+//800
+//450
+
 void SpawnUI()
 {
     entity upgraderUIBackground = GetBasicTemplate();
-    upgraderUIBackground.size = Vector2(800, 450);
+    upgraderUIBackground.size = Vector2(1280, 720);
     upgraderUIBackground.defaultColor = (Color){128, 128, 128, 128};
     upgraderUIBackground.entityType = UI_UPGRADER_IMAGE;
     upgraderUIBackground.isUI = true;
     allocAndAddEntity(upgraderUIBackground);
 
     entity upgradeButtonTemplate = GetUpgradeButtonTemplate();
-    SetStartPositionAndSize(&upgradeButtonTemplate, Vector2(32, 64), Vector2(208, 64));
-    upgradeButtonTemplate.buttonIndex = 0;
+    SetStartPositionAndSize(&upgradeButtonTemplate, Vector2(320, 144), Vector2(208, 64));
+    upgradeButtonTemplate.buttonIndex = 0; // handgun
     allocAndAddEntity(upgradeButtonTemplate);
-    SetStartPositionAndSize(&upgradeButtonTemplate, Vector2(256, 64), Vector2(192, 64));
-    upgradeButtonTemplate.buttonIndex = 1;
+    SetStartPositionAndSize(&upgradeButtonTemplate, Vector2(970, 144), Vector2(192, 64));
+    upgradeButtonTemplate.buttonIndex = 1; // dash
     allocAndAddEntity(upgradeButtonTemplate);
-    SetStartPositionAndSize(&upgradeButtonTemplate, Vector2(480, 64), Vector2(224, 64));
-    upgradeButtonTemplate.buttonIndex = 2;
+    SetStartPositionAndSize(&upgradeButtonTemplate, Vector2(970, 224), Vector2(224, 64));
+    upgradeButtonTemplate.buttonIndex = 2; // max health
     allocAndAddEntity(upgradeButtonTemplate);
 
     entity buyButtonTemplate = GetBuyButtonTemplate();
-    SetStartPositionAndSize(&buyButtonTemplate, Vector2(32, 144), Vector2(208, 64));
-    buyButtonTemplate.buttonIndex = 0;
+    SetStartPositionAndSize(&buyButtonTemplate, Vector2(532, 144), Vector2(208, 64));
+    buyButtonTemplate.buttonIndex = 0; // sharpener
     allocAndAddEntity(buyButtonTemplate);
-    SetStartPositionAndSize(&buyButtonTemplate, Vector2(32, 224), Vector2(208, 64));
-    buyButtonTemplate.buttonIndex = 1;
+    SetStartPositionAndSize(&buyButtonTemplate, Vector2(744, 144), Vector2(208, 64));
+    buyButtonTemplate.buttonIndex = 1; // shotgun
     allocAndAddEntity(buyButtonTemplate);
-    SetStartPositionAndSize(&buyButtonTemplate, Vector2(256, 144), Vector2(208, 64));
-    buyButtonTemplate.buttonIndex = 3;
+    SetStartPositionAndSize(&buyButtonTemplate, Vector2(102, 144), Vector2(208, 64));
+    buyButtonTemplate.buttonIndex = 3; // decoy
     allocAndAddEntity(buyButtonTemplate);
-    SetStartPositionAndSize(&buyButtonTemplate, Vector2(256, 224), Vector2(208, 64));
-    buyButtonTemplate.buttonIndex = 4;
+    SetStartPositionAndSize(&buyButtonTemplate, Vector2(102, 224), Vector2(244, 64));
+    buyButtonTemplate.buttonIndex = 4; // freezing grenade
     allocAndAddEntity(buyButtonTemplate);
-    SetStartPositionAndSize(&buyButtonTemplate, Vector2(480, 224), Vector2(208, 64));
-    buyButtonTemplate.buttonIndex = 5;
+    SetStartPositionAndSize(&buyButtonTemplate, Vector2(102, 304), Vector2(244, 64));
+    buyButtonTemplate.buttonIndex = 5; // explosive grenade
     allocAndAddEntity(buyButtonTemplate);
-    SetStartPositionAndSize(&buyButtonTemplate, Vector2(480, 144), Vector2(208, 64));
-    buyButtonTemplate.buttonIndex = 6;
+    SetStartPositionAndSize(&buyButtonTemplate, Vector2(970, 304), Vector2(208, 64));
+    buyButtonTemplate.buttonIndex = 6; // exploder
     allocAndAddEntity(buyButtonTemplate);
 }
 
 void SpawnEntities()
 {
     entity playerTemp = GetPlayerTemplate();
-    SetStartPosition(&playerTemp, Vector2(400, 200));
+    SetStartPosition(&playerTemp, Vector2(640, 360));
     playerTemp.damagedCooldown = 0;
     player = allocAndAddEntity(playerTemp);
     handgun = allocAndAddEntity(GetHandgunTemplate());
@@ -1173,7 +1176,7 @@ int main()
     InitializeTemplates();
     entities = malloc(sizeof(entity*) * capacity);
     SetConfigFlags(FLAG_VSYNC_HINT);
-    InitWindow(800, 450, "GameRunner - Raylib - C");
+    InitWindow(1280, 720, "GameRunner - Raylib - C");
 
     SpawnEntities();
     PrepareUpgrades();
