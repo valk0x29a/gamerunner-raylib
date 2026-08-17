@@ -10,6 +10,8 @@ void Upgrade(entity* thisButton);
 void BuyOrEquip(entity* thisButton);
 
 entity playerTemplate = { 0 };
+entity sharpenerTemplate = { 0 };
+entity shotgunTemplate = { 0 };
 
 entity GetBasicTemplate()
 {
@@ -36,6 +38,30 @@ entity GetPlayerTemplate()
     return player;
 }
 
+entity GetNormalEnemyTemplate()
+{
+    entity newEntity = GetBasicTemplate();
+    newEntity.size = Vector2(20, 20);
+    newEntity.pivot = Vector2(0.5f, 0.5f);
+    newEntity.defaultColor = GREEN;
+    newEntity.type = ENEMY;
+    newEntity.speed = 2.0f;
+    newEntity.attackDamage = 10;
+    newEntity.attackCooldown = 0.5f;
+    newEntity.attackRange = 25.0f;
+    newEntity.health = 30;
+    newEntity.damagedCooldown = 0.125f;
+    newEntity.damagedColor = RED;
+    newEntity.fovRange = 500.0f;
+    newEntity.stamina = 250.0f;
+    newEntity.staminaRegenerationSpeed = 50.0f;
+    newEntity.flipTimer = 1.0f;
+    newEntity.cashDropAmount = 50;
+    newEntity.templateIndex = 11;
+    newEntity.drag = 12.0f;
+    return newEntity;
+}
+
 entity GetBigEnemyTemplate()
 {
     entity bigEnemy = GetBasicTemplate();
@@ -54,7 +80,7 @@ entity GetBigEnemyTemplate()
     bigEnemy.stamina = 100.0f;
     bigEnemy.staminaRegenerationSpeed = 20.0f;
     bigEnemy.flipTimer = 2.0f;
-    bigEnemy.cashDropAmount = 50;
+    bigEnemy.cashDropAmount = 100;
     bigEnemy.templateIndex = 2;
     bigEnemy.drag = 16.0f;
     return bigEnemy;
@@ -78,7 +104,7 @@ entity GetFastEnemyTemplate()
     fastEnemy.stamina = 500.0f;
     fastEnemy.staminaRegenerationSpeed = 100.0f;
     fastEnemy.flipTimer = 0.5f;
-    fastEnemy.cashDropAmount = 25;
+    fastEnemy.cashDropAmount = 50;
     fastEnemy.templateIndex = 3;
     fastEnemy.drag = 8.0f;
     return fastEnemy;
@@ -99,11 +125,9 @@ entity GetHealthHitboxTemplate()
 entity GetHandgunTemplate()
 {
     entity handgun = GetBasicTemplate();
-    handgun.attackDamage = 10;
-    handgun.attackCooldown = 0.1f;
     handgun.attackRange = 10.0f;
     handgun.ammoCount = 7;
-    handgun.reloadCooldown = 1.0f;
+    handgun.reloadCooldown = 5.0f;
     handgun.isAutomatic = true;
     handgun.templateIndex = 5;
     return handgun;
@@ -112,10 +136,8 @@ entity GetHandgunTemplate()
 entity GetSharpenerTemplate()
 {
     entity sharpener = GetBasicTemplate();
-    sharpener.attackDamage = 5;
     sharpener.attackCooldown = 0.25f;
     sharpener.attackRange = 10.0f;
-    sharpener.ammoCount = 30;
     sharpener.reloadCooldown = 10.0f;
     sharpener.isAutomatic = true;
     sharpener.canBeEquipped = true;
@@ -128,14 +150,11 @@ entity GetShotgunTemplate()
 {
     entity shotgun = GetBasicTemplate();
     shotgun.attackDamage = 20;
-    shotgun.attackCooldown = 1.0f;
     shotgun.attackRange = 10.0f;
-    shotgun.ammoCount = 4;
     shotgun.reloadCooldown = 10.0f;
     shotgun.isAutomatic = false;
     shotgun.canBeEquipped = true;
     shotgun.buttonIndex = 1;
-    shotgun.count = 4;
     shotgun.size = Vector2(0, 32);
     shotgun.templateIndex = 7;
     return shotgun;
@@ -159,9 +178,6 @@ entity GetSniperGunTemplate()
 entity GetExploderTemplate()
 {
     entity newEntity = GetBasicTemplate();
-    newEntity.attackDamage = 16;
-    newEntity.attackCooldown = 1.0f;
-    newEntity.attackRange = 200.0f;
     newEntity.isAutomatic = false;
     newEntity.canBeEquipped = true;
     newEntity.buttonIndex = 6;
@@ -306,11 +322,12 @@ entity GetTemplate(int templateIndex)
         case 3: return GetFastEnemyTemplate();
         case 4: return GetHealthHitboxTemplate();
         case 5: return GetHandgunTemplate();
-        case 6: return GetSharpenerTemplate();
-        case 7: return GetShotgunTemplate();
+        case 6: return sharpenerTemplate;
+        case 7: return shotgunTemplate;
         case 8: return GetSniperGunTemplate();
         case 9: return GetUpgradeButtonTemplate();
         case 10: return GetBuyButtonTemplate();
+        case 11: return GetNormalEnemyTemplate();
         default: return GetBasicTemplate();
     }
 };
@@ -318,6 +335,8 @@ entity GetTemplate(int templateIndex)
 void InitializeTemplates()
 {
     playerTemplate = GetPlayerTemplate();
+    sharpenerTemplate = GetSharpenerTemplate();
+    shotgunTemplate = GetShotgunTemplate();
 }
 
 //NOLINTEND(misc-definitions-in-headers)

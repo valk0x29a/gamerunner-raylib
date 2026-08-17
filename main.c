@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#define NEXT_WAVE_TIMER 10.0f
+#define NEXT_WAVE_TIMER 20.0f
 
 #define Vector2(x,y) (Vector2){x, y}
 
@@ -823,14 +823,14 @@ void DrawPlayerHUD()
     const char* waveText;
     if(nextWaveTimer > 0)
     {
-        waveText = TextFormat("Next Wave starts in: %.1fs", nextWaveTimer);
+        waveText = TextFormat("    Next Wave starts in: %.1fs", nextWaveTimer);
         DrawText("Press 'K' to skip the Interwave", 425, 60, 20, RED);
     }
     else
     {
-        waveText = TextFormat("Current Wave: %d", currentWave);
+        waveText = TextFormat("Current Wave: %d / Enemies left: %d", currentWave, enemiesCount);
     }
-    DrawText(waveText, 375, 20, 40, RED);
+    DrawText(waveText, 325, 20, 40, RED);
 
     DrawText(TextFormat("Number of Dashes: %d", player->numberOfDashes), 550, 670, 20, RED);
     DrawText(TextFormat("Player Health: %d", player->health), 25, 685, 20, RED);
@@ -883,6 +883,12 @@ void BuyOrEquip(entity* thisButton)
             if(playerCash < GetPrice(buyIndex)) { return; }
             playerCash -= GetPrice(buyIndex);
             *isBought = true;
+            if(buyIndex == 6)
+            {
+                thisButton->type = UI_UPGRADER_BUTTON;
+                thisButton->buttonCallback = Upgrade;
+                thisButton->buttonIndex = 8;
+            }
         }
     }
     else
@@ -991,6 +997,8 @@ void DrawUpgraderUI()
             (*entities[i]->buttonCallback)(entities[i]);
         }
     }
+    DrawText("Sharpener", 532 + 48, 108, 20, RED);
+    DrawText("Shotgun", 744 + 52, 108, 20, RED);
 }
 
 void DrawRadiusVFX()
@@ -1034,6 +1042,18 @@ void UpdateEnemiesVelocity()
     }
 }
 
+void EnforceMapBounds()
+{
+    for(int i = 0; i < firstFreeIndex; i++)
+    {
+        if(entities[i]->type != ENEMY && entities[i]->type != PLAYER) { continue; }
+        entities[i]->position.x = max(0, entities[i]->position.x);
+        entities[i]->position.x = min(1280, entities[i]->position.x);
+        entities[i]->position.y = max(0, entities[i]->position.y);
+        entities[i]->position.y = min(720, entities[i]->position.y);
+    }
+}
+
 void SpawnHitPoint(Vector2 position)
 {
     entity hitPoint = GetHitPointTemplate();
@@ -1070,6 +1090,21 @@ void SpawnUI()
     allocAndAddEntity(upgradeButtonTemplate);
     SetStartPositionAndSize(&upgradeButtonTemplate, Vector2(970, 224), Vector2(224, 64));
     upgradeButtonTemplate.buttonIndex = 2; // max health
+    allocAndAddEntity(upgradeButtonTemplate);
+    SetStartPositionAndSize(&upgradeButtonTemplate, Vector2(532, 224), Vector2(208, 64));
+    upgradeButtonTemplate.buttonIndex = 3; // sharpener magazine
+    allocAndAddEntity(upgradeButtonTemplate);
+    SetStartPositionAndSize(&upgradeButtonTemplate, Vector2(532, 304), Vector2(208, 64));
+    upgradeButtonTemplate.buttonIndex = 4; // sharpener damage
+    allocAndAddEntity(upgradeButtonTemplate);
+    SetStartPositionAndSize(&upgradeButtonTemplate, Vector2(744, 224), Vector2(208, 64));
+    upgradeButtonTemplate.buttonIndex = 5; // shotgun magazine
+    allocAndAddEntity(upgradeButtonTemplate);
+    SetStartPositionAndSize(&upgradeButtonTemplate, Vector2(744, 304), Vector2(208, 64));
+    upgradeButtonTemplate.buttonIndex = 6; // shotgun cooldown
+    allocAndAddEntity(upgradeButtonTemplate);
+    SetStartPositionAndSize(&upgradeButtonTemplate, Vector2(744, 384), Vector2(244, 64));
+    upgradeButtonTemplate.buttonIndex = 7; // shotgun pellets amount
     allocAndAddEntity(upgradeButtonTemplate);
 
     entity buyButtonTemplate = GetBuyButtonTemplate();
@@ -1111,6 +1146,19 @@ void SpawnEntities()
     exploder = allocAndAddEntity(GetExploderTemplate());
     allocAndAddEntity(GetUpgraderTemplate());
     SpawnUI();
+    PrepareUpgrades();
+    SetUpgrades();
+}
+
+void SpawnEnemy(entity base, float healthXOffset, int healthSize)
+{
+    entity* newEnemy = allocAndAddEntity(base);
+    entity healthHitbox = GetHealthHitboxTemplate();
+    SetStartPositionAndSize(&healthHitbox, Vector2(-healthXOffset, 0.0f), Vector2(healthSize, healthSize));
+    healthHitbox.parent = newEnemy;
+    healthHitbox.damagedCooldown = 0;
+    entity* hitbox = allocAndAddEntity(healthHitbox);
+    newEnemy->child = hitbox;
 }
 
 void SpawnEnemies()
@@ -1118,29 +1166,22 @@ void SpawnEnemies()
     entity bigEnemy = GetBigEnemyTemplate();
     SetStartPosition(&bigEnemy, Vector2(100, 200));
     bigEnemy.damagedCooldown = 0;
-    entity* be = allocAndAddEntity(bigEnemy);
+    SpawnEnemy(bigEnemy, 36.0f, 16);
 
-    entity healthHitbox = GetHealthHitboxTemplate();
-    SetStartPositionAndSize(&healthHitbox, Vector2(-36.0f, 0.0f), Vector2(16, 16));
-    healthHitbox.parent = be;
-    healthHitbox.damagedCooldown = 0;
-    entity* hh = allocAndAddEntity(healthHitbox);
-
-    be->child = hh;
-    for(int i = 0; i < 3; i++)
+    for(int i = 0; i < 0; i++)
     {
         entity fastEnemy = GetFastEnemyTemplate();
         SetStartPosition(&fastEnemy, Vector2(200, 300 + i * 30));
         fastEnemy.damagedCooldown = 0;
-        entity* fe = allocAndAddEntity(fastEnemy);
+        SpawnEnemy(fastEnemy, 10.0f, 4);
+    }
 
-        entity healthHitbox = GetHealthHitboxTemplate();
-        SetStartPositionAndSize(&healthHitbox, Vector2(-10.0f, 0.0f), Vector2(4, 4));
-        healthHitbox.parent = fe;
-        healthHitbox.damagedCooldown = 0;
-        entity* hh = allocAndAddEntity(healthHitbox);
-
-        fe->child = hh;
+    for(int i = 0; i < 3; i++)
+    {
+        entity normalEnemy = GetNormalEnemyTemplate();
+        SetStartPosition(&normalEnemy, Vector2(700, 400 + i * 30));
+        normalEnemy.damagedCooldown = 0;
+        SpawnEnemy(normalEnemy, 12.0f, 6);
     }
 }
 
@@ -1154,6 +1195,12 @@ void ReloadGame()
     currentHandgunUpgrade = 0;
     currentDashUpgrade = 0;
     currentMaxHealthUpgrade = 0;
+    currentSharpenerMagazineUpgrade = 0;
+    currentSharpenerDamageUpgrade = 0;
+    currentShotgunMagazineUpgrade = 0;
+    currentShotgunCooldownUpgrade = 0;
+    currentShotgunBulletCountUpgrade = 0;
+    currentExploderUpgrade = 0;
     int index = 0;
     bool* isUnlocked = IsBought(index);
     while(isUnlocked != NULL)
@@ -1162,6 +1209,7 @@ void ReloadGame()
         index++;
         isUnlocked = IsBought(index);
     }
+    isExploderUnlocked = false;
     inventorySecondSlot = NULL;
     equippedWeapon = NULL;
     equippedGrenade = NULL;
@@ -1177,8 +1225,6 @@ int main()
     InitWindow(1280, 720, "GameRunner - Raylib - C");
 
     SpawnEntities();
-    PrepareUpgrades();
-    SetUpgrades();
     while (!WindowShouldClose())
     {
         BeginDrawing();
@@ -1193,6 +1239,7 @@ int main()
             UpdateEnemiesVelocity();
             UpdateHealthHitBoxes();
             UpdateHealthPickups();
+            EnforceMapBounds();
             if(IsKeyPressed(KEY_K) && nextWaveTimer > 0) { nextWaveTimer = GetFrameTime(); }
             UpdateWaves();
             UpdateUpgrader();
