@@ -52,7 +52,6 @@ entity GetNormalEnemyTemplate()
     newEntity.health = 30;
     newEntity.damagedCooldown = 0.125f;
     newEntity.damagedColor = RED;
-    newEntity.fovRange = 500.0f;
     newEntity.stamina = 250.0f;
     newEntity.staminaRegenerationSpeed = 50.0f;
     newEntity.flipTimer = 1.0f;
@@ -76,7 +75,6 @@ entity GetBigEnemyTemplate()
     bigEnemy.health = 40;
     bigEnemy.damagedCooldown = 0.125f;
     bigEnemy.damagedColor = RED;
-    bigEnemy.fovRange = 350.0f;
     bigEnemy.stamina = 100.0f;
     bigEnemy.staminaRegenerationSpeed = 20.0f;
     bigEnemy.flipTimer = 2.0f;
@@ -100,7 +98,6 @@ entity GetFastEnemyTemplate()
     fastEnemy.health = 20;
     fastEnemy.damagedCooldown = 0.125f;
     fastEnemy.damagedColor = RED;
-    fastEnemy.fovRange = 650.0f;
     fastEnemy.stamina = 500.0f;
     fastEnemy.staminaRegenerationSpeed = 100.0f;
     fastEnemy.flipTimer = 0.5f;
@@ -127,7 +124,7 @@ entity GetHandgunTemplate()
     entity handgun = GetBasicTemplate();
     handgun.attackRange = 10.0f;
     handgun.ammoCount = 7;
-    handgun.reloadCooldown = 5.0f;
+    handgun.reloadCooldown = 4.0f;
     handgun.isAutomatic = true;
     handgun.templateIndex = 5;
     return handgun;
@@ -138,7 +135,7 @@ entity GetSharpenerTemplate()
     entity sharpener = GetBasicTemplate();
     sharpener.attackCooldown = 0.25f;
     sharpener.attackRange = 10.0f;
-    sharpener.reloadCooldown = 10.0f;
+    sharpener.reloadCooldown = 5.0f;
     sharpener.isAutomatic = true;
     sharpener.canBeEquipped = true;
     sharpener.buttonIndex = 0;
@@ -155,7 +152,7 @@ entity GetShotgunTemplate()
     shotgun.isAutomatic = false;
     shotgun.canBeEquipped = true;
     shotgun.buttonIndex = 1;
-    shotgun.size = Vector2(0, 32);
+    shotgun.size = Vector2(0, 64);
     shotgun.templateIndex = 7;
     return shotgun;
 }

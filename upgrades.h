@@ -49,14 +49,14 @@ typedef struct handgunUpgrade
 handgunUpgrade handgunUpgrades[2];
 
 int currentDashUpgrade = 0;
-int dashUpgradesCount = 2;
-int dashUpgradesPrices[1];
+int dashUpgradesCount = 3;
+int dashUpgradesPrices[2];
 typedef struct dashUpgrade
 {
     int numberOfDashes;
     float dashCooldown;
 } dashUpgrade;
-dashUpgrade dashUpgrades[2];
+dashUpgrade dashUpgrades[3];
 
 int currentMaxHealthUpgrade = 0;
 int maxHealthUpgradesCount = 2;
@@ -253,15 +253,19 @@ void PrepareUpgrades()
     handgunUpgrades[0].attackDamage = 10;
 
     handgunUpgrades[1].attackCooldown = 0.25f;
-    handgunUpgrades[1].attackDamage = 20;
+    handgunUpgrades[1].attackDamage = 12;
     handgunUpgradesPrices[0] = 100;
 
     dashUpgrades[0].dashCooldown = 2.0f;
-    dashUpgrades[0].numberOfDashes = 2;
+    dashUpgrades[0].numberOfDashes = 1;
 
-    dashUpgrades[1].dashCooldown = 1.0f;
-    dashUpgrades[1].numberOfDashes = 4;
+    dashUpgrades[1].dashCooldown = 1.5f;
+    dashUpgrades[1].numberOfDashes = 2;
     dashUpgradesPrices[0] = 100;
+
+    dashUpgrades[2].dashCooldown = 0.75f;
+    dashUpgrades[2].numberOfDashes = 3;
+    dashUpgradesPrices[1] = 200;
 
     maxHealthUpgrades[0] = 100;
     maxHealthUpgrades[1] = 150;
@@ -318,7 +322,7 @@ void PrepareUpgrades()
     shotgunBulletCountUpgradesPrices[3] = 400;
 
     exploderUpgrades[0].attackCooldown = 4.0f;
-    exploderUpgrades[0].attackDamage = 8;
+    exploderUpgrades[0].attackDamage = 16;
     exploderUpgrades[0].attackRange = 100.0f;
 
     exploderUpgrades[1].attackCooldown = 2.0f;

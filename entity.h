@@ -14,6 +14,7 @@
 #define UI_UPGRADER_BUY_BUTTON 1 << 9
 #define DECOY 1 << 10
 #define RADIUS_VFX 1 << 11
+#define DASHY_ZOMBIE 1 << 12
 
 typedef struct entity
 {
@@ -33,7 +34,6 @@ typedef struct entity
     float attackRange;
     float damagedCooldown;
     Color damagedColor;
-    float fovRange;
     float stamina;
     bool isRegenerating;
     float staminaRegenerationSpeed;

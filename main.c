@@ -9,6 +9,7 @@
 #include <string.h>
 
 #define NEXT_WAVE_TIMER 20.0f
+#define SAFE_ZONE_RADIUS 20.0f
 
 #define Vector2(x,y) (Vector2){x, y}
 
@@ -72,13 +73,27 @@ entity* explosiveGrenade;
 
 entity* exploder;
 #include "upgrades.h"
+
+typedef struct wave
+{
+    int normalEnemyCount;
+    int fastEnemyCount;
+    int bigEnemyCount;
+    int wavePrize;
+} wave;
+
+#define WAVES_COUNT 10
+wave waves[WAVES_COUNT];
+
+wave currentWave;
+
 int enemiesCount = 0;
 
-int currentWave = 0;
+int currentWaveIndex = 0;
 
 float nextWaveTimer = NEXT_WAVE_TIMER;
 
-int playerCash = 0;
+int playerCash = 100;
 
 entity* player;
 
@@ -227,7 +242,7 @@ RayCastHitResult RayCastHit(Vector2 r1, Vector2 r2, uint entityTypeMask)
         {
             if(!colliding[j]) { continue; }
             distance = getSqrDistance(r1, results[j]);
-            printf("result index: %d, pos x: %f , y: %f\n", j, results[j].x, results[j].y);
+            // printf("result index: %d, pos x: %f , y: %f\n", j, results[j].x, results[j].y);
             if(distance < closestDistance)
             {
                 closestHit = results[j];
@@ -584,7 +599,6 @@ void UpdateEnemiesTarget()
         {
             if(entities[j]->type != PLAYER && entities[j]->type != DECOY) { continue; }
             float dist = getSqrDistance(entities[i]->position, entities[j]->position);
-            if(dist > entities[i]->fovRange*entities[i]->fovRange) { continue; }
             if(dist < minDist)
             {
                 minDist = dist;
@@ -747,7 +761,10 @@ void UpdateWaves()
         if(nextWaveTimer <= 0)
         {
             SpawnEnemies();
-            currentWave++;
+            if(currentWaveIndex <= WAVES_COUNT - 1)
+            {
+                currentWaveIndex++;
+            }
             isUpgraderUIActive = false;
         }
     }
@@ -808,6 +825,7 @@ void UpdateDamageTexts()
 void EndWave()
 {
     nextWaveTimer = NEXT_WAVE_TIMER;
+    playerCash += waves[currentWaveIndex].wavePrize;
 }
 
 char* GetGrenadeText()
@@ -828,7 +846,7 @@ void DrawPlayerHUD()
     }
     else
     {
-        waveText = TextFormat("Current Wave: %d / Enemies left: %d", currentWave, enemiesCount);
+        waveText = TextFormat("Current Wave: %d / Enemies left: %d", currentWaveIndex, enemiesCount);
     }
     DrawText(waveText, 325, 20, 40, RED);
 
@@ -1146,8 +1164,19 @@ void SpawnEntities()
     exploder = allocAndAddEntity(GetExploderTemplate());
     allocAndAddEntity(GetUpgraderTemplate());
     SpawnUI();
-    PrepareUpgrades();
     SetUpgrades();
+}
+
+Vector2 GetRandomEnemySpawnPosition()
+{
+    int x = rand() % 1280;
+    int y = rand() % 720;
+    while(Vector2Length(Vector2Subtract(player->position, Vector2(x, y))) <= SAFE_ZONE_RADIUS)
+    {
+        int x = rand() % 1280;
+        int y = rand() % 720;
+    }
+    return Vector2(x, y);
 }
 
 void SpawnEnemy(entity base, float healthXOffset, int healthSize)
@@ -1163,25 +1192,40 @@ void SpawnEnemy(entity base, float healthXOffset, int healthSize)
 
 void SpawnEnemies()
 {
-    entity bigEnemy = GetBigEnemyTemplate();
-    SetStartPosition(&bigEnemy, Vector2(100, 200));
-    bigEnemy.damagedCooldown = 0;
-    SpawnEnemy(bigEnemy, 36.0f, 16);
+    for(int i = 0; i < waves[currentWaveIndex].bigEnemyCount; i++)
+    {
+        entity bigEnemy = GetBigEnemyTemplate();
+        SetStartPosition(&bigEnemy, GetRandomEnemySpawnPosition());
+        bigEnemy.damagedCooldown = 0;
+        SpawnEnemy(bigEnemy, 36.0f, 16);
+    }
 
-    for(int i = 0; i < 0; i++)
+    for(int i = 0; i < waves[currentWaveIndex].fastEnemyCount; i++)
     {
         entity fastEnemy = GetFastEnemyTemplate();
-        SetStartPosition(&fastEnemy, Vector2(200, 300 + i * 30));
+        SetStartPosition(&fastEnemy, GetRandomEnemySpawnPosition());
         fastEnemy.damagedCooldown = 0;
         SpawnEnemy(fastEnemy, 10.0f, 4);
     }
 
-    for(int i = 0; i < 3; i++)
+    for(int i = 0; i < waves[currentWaveIndex].normalEnemyCount; i++)
     {
         entity normalEnemy = GetNormalEnemyTemplate();
-        SetStartPosition(&normalEnemy, Vector2(700, 400 + i * 30));
+        SetStartPosition(&normalEnemy, GetRandomEnemySpawnPosition());
         normalEnemy.damagedCooldown = 0;
         SpawnEnemy(normalEnemy, 12.0f, 6);
+    }
+}
+
+void PrepareWaves()
+{
+    for(int i = 0; i < WAVES_COUNT; i++)
+    {
+        int currentHumanIndex = i + 1;
+        waves[i].bigEnemyCount = currentHumanIndex / 3;
+        waves[i].fastEnemyCount = currentHumanIndex / 2;
+        waves[i].normalEnemyCount = currentHumanIndex;// (currentHumanIndex + 1) / 2;
+        waves[i].wavePrize = 50 * currentHumanIndex;
     }
 }
 
@@ -1189,7 +1233,7 @@ void ReloadGame()
 {
     firstFreeIndex = 0;
     nextWaveTimer = NEXT_WAVE_TIMER;
-    currentWave = 0;
+    currentWaveIndex = 0;
     enemiesCount = 0;
     playerCash = 0;
     currentHandgunUpgrade = 0;
@@ -1224,6 +1268,8 @@ int main()
     SetConfigFlags(FLAG_VSYNC_HINT);
     InitWindow(1280, 720, "GameRunner - Raylib - C");
 
+    PrepareUpgrades();
+    PrepareWaves();
     SpawnEntities();
     while (!WindowShouldClose())
     {
