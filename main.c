@@ -538,7 +538,7 @@ void UpdatePlayerAttack()
                     if(dist > equippedGrenade->attackRange*equippedGrenade->attackRange ) { continue; }
                     if(equippedGrenade == freezingGrenade)
                     {
-                        entities[j]->stamina += equippedGrenade->stamina;
+                        entities[j]->stamina = -0.1f;//+= equippedGrenade->stamina;
                         entity freezingGrenadeVFX = GetFreezingGrenadeVFXTemplate();
                         freezingGrenadeVFX.position = GetMousePosition();
                         allocAndAddEntity(freezingGrenadeVFX);

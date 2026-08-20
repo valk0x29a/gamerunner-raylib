@@ -24,6 +24,8 @@ extern entity playerTemplate;
 extern entity sharpenerTemplate;
 extern entity shotgunTemplate;
 
+extern entity* player;
+
 // const int sharpenerUpgradeIndex = 3;
 int sharpenerPrice = 100;
 bool isSharpenerUnlocked = false;
@@ -59,9 +61,9 @@ typedef struct dashUpgrade
 dashUpgrade dashUpgrades[3];
 
 int currentMaxHealthUpgrade = 0;
-int maxHealthUpgradesCount = 2;
-int maxHealthUpgradesPrices[1];
-int maxHealthUpgrades[2];
+int maxHealthUpgradesCount = 3;
+int maxHealthUpgradesPrices[2];
+int maxHealthUpgrades[3];
 
 int currentSharpenerMagazineUpgrade = 0;
 int sharpenerMagazineUpgradesCount = 5;
@@ -268,8 +270,11 @@ void PrepareUpgrades()
     dashUpgradesPrices[1] = 200;
 
     maxHealthUpgrades[0] = 100;
-    maxHealthUpgrades[1] = 150;
+    maxHealthUpgrades[1] = 125;
     maxHealthUpgradesPrices[0] = 100;
+    maxHealthUpgrades[2] = 150;
+    maxHealthUpgradesPrices[1] = 200;
+
 
     sharpenerMagazineUpgrades[0] = 20;
     sharpenerMagazineUpgrades[1] = 22;
@@ -336,6 +341,8 @@ void SetUpgrades()
     playerTemplate.dashCooldown = dashUpgrades[currentDashUpgrade].dashCooldown;
     playerTemplate.numberOfDashes = dashUpgrades[currentDashUpgrade].numberOfDashes;
     playerTemplate.health = maxHealthUpgrades[currentMaxHealthUpgrade];
+    player->numberOfDashes = dashUpgrades[currentDashUpgrade].numberOfDashes;
+    player->dashCooldown = dashUpgrades[currentDashUpgrade].numberOfDashes;
     handgun->attackCooldown = handgunUpgrades[currentHandgunUpgrade].attackCooldown;
     handgun->attackDamage = handgunUpgrades[currentHandgunUpgrade].attackDamage;
     sharpenerTemplate.ammoCount = sharpenerMagazineUpgrades[currentSharpenerMagazineUpgrade];

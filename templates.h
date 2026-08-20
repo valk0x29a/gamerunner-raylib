@@ -29,8 +29,6 @@ entity GetPlayerTemplate()
     player.type = PLAYER;
     player.speed = 2.5f;
     player.dashDistance = 128;
-    player.numberOfDashes = 2;
-    player.dashCooldown = 2.0f;
     player.health = 100;
     player.damagedCooldown = 0.125f;
     player.damagedColor = RED;
@@ -124,7 +122,7 @@ entity GetHandgunTemplate()
     entity handgun = GetBasicTemplate();
     handgun.attackRange = 10.0f;
     handgun.ammoCount = 7;
-    handgun.reloadCooldown = 4.0f;
+    handgun.reloadCooldown = 2.5f;
     handgun.isAutomatic = true;
     handgun.templateIndex = 5;
     return handgun;
@@ -133,9 +131,9 @@ entity GetHandgunTemplate()
 entity GetSharpenerTemplate()
 {
     entity sharpener = GetBasicTemplate();
-    sharpener.attackCooldown = 0.25f;
+    sharpener.attackCooldown = 0.2f;
     sharpener.attackRange = 10.0f;
-    sharpener.reloadCooldown = 5.0f;
+    sharpener.reloadCooldown = 4.0f;
     sharpener.isAutomatic = true;
     sharpener.canBeEquipped = true;
     sharpener.buttonIndex = 0;
@@ -148,11 +146,11 @@ entity GetShotgunTemplate()
     entity shotgun = GetBasicTemplate();
     shotgun.attackDamage = 20;
     shotgun.attackRange = 10.0f;
-    shotgun.reloadCooldown = 10.0f;
+    shotgun.reloadCooldown = 7.5f;
     shotgun.isAutomatic = false;
     shotgun.canBeEquipped = true;
     shotgun.buttonIndex = 1;
-    shotgun.size = Vector2(0, 64);
+    shotgun.size = Vector2(0, 32);
     shotgun.templateIndex = 7;
     return shotgun;
 }
@@ -192,7 +190,7 @@ entity GetDecoyTemplate()
 entity GetFreezingGrenadeTemplate()
 {
     entity freezingGrenade = GetBasicTemplate();
-    freezingGrenade.stamina = -100.0f;
+    //freezingGrenade.stamina = -100.0f;
     freezingGrenade.attackRange = 100.0f;
     freezingGrenade.buttonIndex = 4;
     return freezingGrenade;
