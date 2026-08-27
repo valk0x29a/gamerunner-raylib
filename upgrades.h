@@ -23,6 +23,7 @@ extern entity* exploder;
 extern entity playerTemplate;
 extern entity sharpenerTemplate;
 extern entity shotgunTemplate;
+extern entity exploderTemplate;
 
 extern entity* player;
 
@@ -328,7 +329,7 @@ void PrepareUpgrades()
 
     exploderUpgrades[0].attackCooldown = 4.0f;
     exploderUpgrades[0].attackDamage = 16;
-    exploderUpgrades[0].attackRange = 100.0f;
+    exploderUpgrades[0].attackRange = 150.0f;
 
     exploderUpgrades[1].attackCooldown = 2.0f;
     exploderUpgrades[1].attackDamage = 16;
@@ -350,7 +351,8 @@ void SetUpgrades()
     shotgunTemplate.ammoCount = shotgunMagazineUpgrades[currentShotgunMagazineUpgrade];
     shotgun->attackCooldown = shotgunCooldownUpgrades[currentShotgunCooldownUpgrade];
     shotgun->count = shotgunBulletCountUpgrades[currentShotgunBulletCountUpgrade];
-    exploder->attackCooldown = exploderUpgrades[currentExploderUpgrade].attackCooldown;
+    exploderTemplate.attackCooldown = exploderUpgrades[currentExploderUpgrade].attackCooldown;
+    exploder->attackCooldown = exploderTemplate.attackCooldown;
     exploder->attackDamage = exploderUpgrades[currentExploderUpgrade].attackDamage;
     exploder->attackRange = exploderUpgrades[currentExploderUpgrade].attackRange;
 }

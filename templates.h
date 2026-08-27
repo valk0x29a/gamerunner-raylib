@@ -12,6 +12,7 @@ void BuyOrEquip(entity* thisButton);
 entity playerTemplate = { 0 };
 entity sharpenerTemplate = { 0 };
 entity shotgunTemplate = { 0 };
+entity exploderTemplate = { 0 };
 
 entity GetBasicTemplate()
 {
@@ -228,6 +229,7 @@ entity GetExploderTemplate()
     newEntity.isAutomatic = false;
     newEntity.canBeEquipped = true;
     newEntity.buttonIndex = 6;
+    newEntity.templateIndex = 14;
     return newEntity;
 }
 
@@ -359,6 +361,16 @@ entity GetExplosiveGrenadeVFXTemplate()
     return newEntity;
 }
 
+entity GetBulletVFXTemplate()
+{
+    entity newEntity = GetBasicTemplate();
+    newEntity.defaultColor = RED;
+    newEntity.type = LINE_VFX;
+    newEntity.destroyTimer = -0.02f;
+    return newEntity;
+}
+
+
 entity GetTemplate(int templateIndex)
 {
     switch(templateIndex)
@@ -377,6 +389,7 @@ entity GetTemplate(int templateIndex)
         case 11: return GetNormalEnemyTemplate();
         case 12: return GetBossEnemyTemplate();
         case 13: return GetDashyEnemyTemplate();
+        case 14: return exploderTemplate;
         default: return GetBasicTemplate();
     }
 };
@@ -386,6 +399,7 @@ void InitializeTemplates()
     playerTemplate = GetPlayerTemplate();
     sharpenerTemplate = GetSharpenerTemplate();
     shotgunTemplate = GetShotgunTemplate();
+    exploderTemplate = GetExploderTemplate();
 }
 
 //NOLINTEND(misc-definitions-in-headers)

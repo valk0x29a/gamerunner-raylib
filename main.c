@@ -388,8 +388,12 @@ void UpdatePlayerDash()
 void ShootBullet(Vector2 targetPosition)
 {
     Vector2 offset = Vector2Subtract(targetPosition, player->position);
-    offset = Vector2Multiply(offset, Vector2(3,3));
-    DrawLineV(player->position, Vector2Add(player->position, offset), RED);
+    offset = Vector2Multiply(offset, Vector2(9, 9));
+    entity bulletVFX = GetBulletVFXTemplate();
+    bulletVFX.position = Vector2Add(player->position, offset);
+    bulletVFX.previousPosition = player->position;
+    allocAndAddEntity(bulletVFX);
+
     RayCastHitResult result = RayCastHit(player->position, targetPosition, ENEMY | HEALTH_HITBOX);
     if(!result.colliding) { return; }
 
@@ -455,6 +459,11 @@ void UpdatePlayerAttackCooldowns()
             {
                 equippedWeapon->ammoCount = GetTemplate(equippedWeapon->templateIndex).ammoCount;
             }
+        }
+
+        if(exploder->attackCooldown > 0)
+        {
+            exploder->attackCooldown -= GetFrameTime();
         }
     }
 }
@@ -566,7 +575,7 @@ void UpdatePlayerAttack()
             equippedGrenade->count--;
         }
 
-        if(IsKeyPressed(KEY_Q) && isExploderUnlocked && player->attackCooldown <= 0 && !isUpgraderUIActive)
+        if(IsKeyPressed(KEY_Q) && isExploderUnlocked && exploder->attackCooldown <= 0 && !isUpgraderUIActive)
         {
             for(int j = 0; j < firstFreeIndex; j++)
             {
@@ -578,7 +587,7 @@ void UpdatePlayerAttack()
                 printf("%f\n", multiplier);
                 entities[j]->velocity = Vector2Multiply(offset, Vector2(multiplier * strength, multiplier * strength));
             }
-            player->attackCooldown = equippedWeapon->attackCooldown;
+            exploder->attackCooldown = GetTemplate(exploder->templateIndex).attackCooldown;
         }
     }
 }
@@ -910,9 +919,16 @@ void DrawPlayerHUD()
     const char* text = player->reloadCooldown > 0 ? "Reloading..." : TextFormat("Ammo: %d/%d", equippedWeapon->ammoCount, GetTemplate(equippedWeapon->templateIndex).ammoCount);
     DrawText(text, 1155, 685, 20, RED);
     DrawText(equippedWeapon == handgun ? "Handgun" : GetItemName(equippedWeapon->buttonIndex), 1155, 660, 20, RED);
-    if(equippedGrenade == NULL) { return; }
-    DrawText(TextFormat("Equipped Grenade:\n %s", GetGrenadeText()), 1080, 595, 20, RED);
-    DrawText(TextFormat("Count: %d", equippedGrenade->count), 1125, 635, 20, RED);
+    if(equippedGrenade != NULL)
+    {
+        DrawText(TextFormat("Equipped Grenade:\n %s", GetGrenadeText()), 1080, 595, 20, RED);
+        DrawText(TextFormat("Count: %d", equippedGrenade->count), 1125, 635, 20, RED);
+    }
+    if(isExploderUnlocked)
+    {
+        const char* exploderText = exploder->attackCooldown <= 0 ? "Exploder ready" : TextFormat("Exploder ready in %.1fs", exploder->attackCooldown);
+        DrawText(exploderText, 25, 655, 20, RED);
+    }
 }
 
 bool isMouseInside(entity* e)
@@ -1082,6 +1098,16 @@ void DrawRadiusVFX()
     }
 }
 
+
+void DrawLineVFX()
+{
+    for(int i = 0; i < firstFreeIndex; i++)
+    {
+        if(entities[i]->type != LINE_VFX) { continue; }
+        DrawLineV(entities[i]->previousPosition, entities[i]->position, entities[i]->defaultColor);
+    }
+}
+
 void UpdateDamagedCooldown()
 {
     for(int i = 0; i < firstFreeIndex; i++)
@@ -1225,10 +1251,12 @@ Vector2 GetRandomEnemySpawnPosition()
 {
     int x = rand() % 1280;
     int y = rand() % 720;
-    while(Vector2Length(Vector2Subtract(player->position, Vector2(x, y))) <= SAFE_ZONE_RADIUS)
+    int iterations = 0;
+    while(Vector2Length(Vector2Subtract(player->position, Vector2(x, y))) <= SAFE_ZONE_RADIUS && iterations < 256)
     {
         int x = rand() % 1280;
         int y = rand() % 720;
+        iterations++;
     }
     return Vector2(x, y);
 }
@@ -1372,6 +1400,8 @@ int main()
             UpdateDamageTexts();
             UpdateDamagedCooldown();
             UpdateDestroyTimer();
+
+            DrawLineVFX();
             for(int i = 0; i < firstFreeIndex; i++)
             {
                 if(!entities[i]->isEnabled || entities[i]->isUI) { continue; }
