@@ -79,6 +79,8 @@ typedef struct wave
     int normalEnemyCount;
     int fastEnemyCount;
     int bigEnemyCount;
+    int bossEnemyCount;
+    int dashyEnemyCount;
     int wavePrize;
 } wave;
 
@@ -315,38 +317,43 @@ void UpdatePlayerMovement()
         if(entities[i]->type != PLAYER) { continue; }
         entity* player = entities[i];
         int speed = player->speed;
-        int dashXDirection = 0;
-        int dashYDirection = 0;
+        player->dashDirection = Vector2(0, 0);
         if(IsKeyDown(KEY_W))
         {
             player->position.y -= speed;
-            dashYDirection = -1;
+            player->dashDirection.y = -1;
         }
         if(IsKeyDown(KEY_S))
         {
             player->position.y += speed;
-            dashYDirection = 1;
+            player->dashDirection.y = 1;
         }
         if(IsKeyDown(KEY_A))
         {
             player->position.x -= speed;
-            dashXDirection = -1;
+            player->dashDirection.x = -1;
         }
         if(IsKeyDown(KEY_D))
         {
             player->position.x += speed;
-            dashXDirection = 1;
+            player->dashDirection.x = 1;
         }
-        // printf("%d\n", player->numberOfDashes);
-        // printf("%f\n", player->currentDashCooldown);
+    }
+}
+
+void UpdatePlayerDash()
+{
+    for(int i = 0; i < firstFreeIndex; i++)
+    {
+        if(entities[i]->type != PLAYER) { continue; }
         if(IsKeyPressed(KEY_SPACE) && player->numberOfDashes > 0)
         {
-            if(dashXDirection == 0 && dashYDirection == 0)
+            if(player->dashDirection.x == 0 && player->dashDirection.y == 0)
             {
-                dashYDirection = 1;
+                player->dashDirection.y = 1;
             }
-            player->position.x += dashXDirection * player->dashDistance;
-            player->position.y += dashYDirection * player->dashDistance;
+            player->position.x += player->dashDirection.x * player->dashDistance;
+            player->position.y += player->dashDirection.y * player->dashDistance;
             player->numberOfDashes--;
 
             RayCastAllHitsResult result = RayCastAllHits(player->position, player->previousPosition, ENEMY, getSqrDistance(player->position, player->previousPosition));
@@ -378,7 +385,55 @@ void UpdatePlayerMovement()
     }
 }
 
-void UpdatePlayerAttack()
+void ShootBullet(Vector2 targetPosition)
+{
+    Vector2 offset = Vector2Subtract(targetPosition, player->position);
+    offset = Vector2Multiply(offset, Vector2(3,3));
+    DrawLineV(player->position, Vector2Add(player->position, offset), RED);
+    RayCastHitResult result = RayCastHit(player->position, targetPosition, ENEMY | HEALTH_HITBOX);
+    if(!result.colliding) { return; }
+
+    SpawnHitPoint(result.hitPosition);
+    int entityIndex = result.entityIndex;
+    entity* e = entities[entityIndex];
+    if(entities[entityIndex]->type == HEALTH_HITBOX)
+    {
+        entities[entityIndex]->damagedCooldown = GetTemplate(entities[entityIndex]->templateIndex).damagedCooldown;
+        e = entities[entityIndex]->parent;
+    }
+
+    float x = result.hitPosition.x;
+    float marginOfError = 1.0f;
+    bool isHittingFront = e->isFlipped ? x < e->position.x + e->size.x - marginOfError : x > e->position.x + marginOfError;
+    float attackMultiplier = isHittingFront ? 0.5f : 1.0f;
+    e->health -= equippedWeapon->attackDamage * attackMultiplier;
+    e->damagedCooldown = GetTemplate(e->templateIndex).damagedCooldown;
+    if(e->dashingEnemy)
+    {
+        int dash = rand() % 2;
+        if(dash == 1)
+        {
+            int yDirection = (rand() % 3) - 1;
+            int xDirection = (rand() % 3) - 1;
+            e->dashDirection = Vector2(xDirection * 0.25f, yDirection * 0.25f);
+        }
+    }
+    if(e->health <= 0)
+    {
+        // printf("%d\n", entities[entityIndex]->entityType);
+        if(entities[entityIndex]->type == HEALTH_HITBOX)
+        {
+            entity healthPickup = GetHealthPickupTemplate();
+            SetStartPosition(&healthPickup, e->position);
+            allocAndAddEntity(healthPickup);
+        }
+    }
+
+    Vector2 damageTextPosition = Vector2Add(result.hitPosition, Vector2(0, -20));
+    SpawnDamageText(damageTextPosition, equippedWeapon->attackDamage * attackMultiplier);
+}
+
+void UpdatePlayerAttackCooldowns()
 {
     for(int i = 0; i < firstFreeIndex; i++)
     {
@@ -401,6 +456,15 @@ void UpdatePlayerAttack()
                 equippedWeapon->ammoCount = GetTemplate(equippedWeapon->templateIndex).ammoCount;
             }
         }
+    }
+}
+
+void UpdatePlayerEquipment()
+{
+    for(int i = 0; i < firstFreeIndex; i++)
+    {
+        if(entities[i]->type != PLAYER) { continue; }
+        entity* player = entities[i];
 
         if(IsKeyPressed(KEY_ONE))
         {
@@ -424,44 +488,21 @@ void UpdatePlayerAttack()
         {
             equippedGrenade = explosiveGrenade;
         }
+    }
+}
+
+void UpdatePlayerAttack()
+{
+    for(int i = 0; i < firstFreeIndex; i++)
+    {
+        if(entities[i]->type != PLAYER) { continue; }
+        entity* player = entities[i];
 
         bool shouldShot = equippedWeapon->isAutomatic ? IsMouseButtonDown(MOUSE_LEFT_BUTTON) : IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
         if(shouldShot && player->attackCooldown <= 0 && player->reloadCooldown <= 0 && !isUpgraderUIActive && equippedWeapon->ammoCount > 0 && equippedWeapon->count == 0)
         {
-            Vector2 mousePosition = GetMousePosition();
-            Vector2 offset = Vector2Subtract(mousePosition, player->position);
-            offset = Vector2Multiply(offset, Vector2(3,3));
-            DrawLineV(player->position, Vector2Add(player->position, offset), RED);
-            RayCastHitResult result = RayCastHit(player->position, mousePosition, ENEMY | HEALTH_HITBOX);
-            if(result.colliding)
-            {
-                SpawnHitPoint(result.hitPosition);
-                int entityIndex = result.entityIndex;
-                entity* e = entities[entityIndex];
-                if(entities[entityIndex]->type == HEALTH_HITBOX)
-                {
-                    entities[entityIndex]->damagedCooldown = GetTemplate(entities[entityIndex]->templateIndex).damagedCooldown;
-                    e = entities[entityIndex]->parent;
-                }
-                float x = result.hitPosition.x;
-                float marginOfError = 1.0f;
-                bool isHittingFront = e->isFlipped ? x < e->position.x + e->size.x - marginOfError : x > e->position.x + marginOfError;
-                float attackMultiplier = isHittingFront ? 0.5f : 1.0f;
-                e->health -= equippedWeapon->attackDamage * attackMultiplier;
-                e->damagedCooldown = GetTemplate(e->templateIndex).damagedCooldown;
-                if(e->health <= 0)
-                {
-                    // printf("%d\n", entities[entityIndex]->entityType);
-                    if(entities[entityIndex]->type == HEALTH_HITBOX)
-                    {
-                        entity healthPickup = GetHealthPickupTemplate();
-                        SetStartPosition(&healthPickup, e->position);
-                        allocAndAddEntity(healthPickup);
-                    }
-                }
-                Vector2 damageTextPosition = Vector2Add(result.hitPosition, Vector2(0, -20));
-                SpawnDamageText(damageTextPosition, equippedWeapon->attackDamage * attackMultiplier);
-            }
+            ShootBullet(GetMousePosition());
+
             player->attackCooldown = equippedWeapon->attackCooldown;
             equippedWeapon->ammoCount--;
             if(equippedWeapon->ammoCount <= 0)
@@ -479,39 +520,7 @@ void UpdatePlayerAttack()
                 float offsetMultiplayer = (float)(rand() % (int)(maxSpread * 2 * 100)) / 100;
                 offsetMultiplayer -= maxSpread;
                 Vector2 shotPosition = Vector2Add(GetMousePosition(), Vector2Multiply(offset, Vector2(offsetMultiplayer, offsetMultiplayer)));
-                offset = Vector2Subtract(shotPosition, player->position);
-                offset = Vector2Multiply(offset, Vector2(3,3));
-                DrawLineV(player->position, Vector2Add(player->position, offset), RED);
-                RayCastHitResult result = RayCastHit(player->position, shotPosition, ENEMY | HEALTH_HITBOX);
-                if(result.colliding)
-                {
-                    SpawnHitPoint(result.hitPosition);
-                    int entityIndex = result.entityIndex;
-                    entity* e = entities[entityIndex];
-                    if(entities[entityIndex]->type == HEALTH_HITBOX)
-                    {
-                        entities[entityIndex]->damagedCooldown = GetTemplate(entities[entityIndex]->templateIndex).damagedCooldown;
-                        e = entities[entityIndex]->parent;
-                    }
-                    float x = result.hitPosition.x;
-                    float marginOfError = 1.0f;
-                    bool isHittingFront = e->isFlipped ? x < e->position.x + e->size.x - marginOfError : x > e->position.x + marginOfError;
-                    float attackMultiplier = isHittingFront ? 0.5f : 1.0f;
-                    e->health -= equippedWeapon->attackDamage * attackMultiplier;
-                    e->damagedCooldown = GetTemplate(e->templateIndex).damagedCooldown;
-                    if(e->health <= 0)
-                    {
-                        // printf("%d\n", entities[entityIndex]->entityType);
-                        if(entities[entityIndex]->type == HEALTH_HITBOX)
-                        {
-                            entity healthPickup = GetHealthPickupTemplate();
-                            SetStartPosition(&healthPickup, e->position);
-                            allocAndAddEntity(healthPickup);
-                        }
-                    }
-                    Vector2 damageTextPosition = Vector2Add(result.hitPosition, Vector2(0, -20));
-                    SpawnDamageText(damageTextPosition, equippedWeapon->attackDamage * attackMultiplier);
-                }
+                ShootBullet(shotPosition);
             }
             player->attackCooldown = equippedWeapon->attackCooldown;
             equippedWeapon->ammoCount--;
@@ -640,12 +649,6 @@ void UpdateEnemiesMovement()
             if(entities[i]->isFlipped)
             {
                 entities[i]->flipTimer -= GetFrameTime();
-                if(entities[i]->flipTimer < 0)
-                {
-                    entities[i]->flipTimer = GetTemplate(entities[i]->templateIndex).flipTimer;
-                    entities[i]->isFlipped = !entities[i]->isFlipped;
-                    entities[i]->stamina -= 10.0f;
-                }
             }
             else
             {
@@ -658,12 +661,6 @@ void UpdateEnemiesMovement()
             if(!entities[i]->isFlipped)
             {
                 entities[i]->flipTimer -= GetFrameTime();
-                if(entities[i]->flipTimer < 0)
-                {
-                    entities[i]->flipTimer = GetTemplate(entities[i]->templateIndex).flipTimer;
-                    entities[i]->isFlipped = !entities[i]->isFlipped;
-                    entities[i]->stamina -= 10.0f;
-                }
             }
             else
             {
@@ -679,6 +676,63 @@ void UpdateEnemiesMovement()
         {
             entities[i]->position.y -= min(speed, fabsf(enemyPos.y - playerPos.y));
         }
+    }
+}
+
+void ExecuteEnemiesFlip()
+{
+    for(int i = 0; i < firstFreeIndex; i++)
+    {
+        if(entities[i]->type != ENEMY) { continue; }
+        if(entities[i]->isRegenerating) { continue; }
+        if(entities[i]->target == NULL) { continue; }
+
+        if(entities[i]->flipTimer >= 0) { continue; }
+
+        entities[i]->flipTimer = GetTemplate(entities[i]->templateIndex).flipTimer;
+        entities[i]->isFlipped = !entities[i]->isFlipped;
+        entities[i]->stamina -= 10.0f;
+        if(entities[i]->dashingEnemy)
+        {
+            entities[i]->dashDirection.x = entities[i]->isFlipped ? 1 : -1;
+        }
+    }
+}
+
+void UpdateEnemiesDash()
+{
+    for(int i = 0; i < firstFreeIndex; i++)
+    {
+        if(entities[i]->type != ENEMY) { continue; }
+        if(entities[i]->isRegenerating) { continue; }
+        if(entities[i]->target == NULL) { continue; }
+        if(!entities[i]->dashingEnemy) { continue; }
+
+        Vector2 enemyPos = entities[i]->position;
+        Vector2 playerPos = entities[i]->target->position;
+
+        entities[i]->dashCooldown -= GetFrameTime();
+        if(entities[i]->dashCooldown > 0) { continue; }
+        if(getSqrDistance(entities[i]->position, entities[i]->target->position) > entities[i]->dashDistance * entities[i]->dashDistance)
+        {
+            entities[i]->dashDirection.x = enemyPos.x < playerPos.x ? 1 : -1;
+            entities[i]->dashDirection.y = enemyPos.y < playerPos.y ? 1 : -1;
+            entities[i]->dashCooldown = GetTemplate(entities[i]->templateIndex).dashCooldown;
+        }
+    }
+}
+
+void ExecuteEnemiesDash()
+{
+    for(int i = 0; i < firstFreeIndex; i++)
+    {
+        if(entities[i]->type != ENEMY) { continue; }
+        if(!entities[i]->dashingEnemy) { continue; }
+        if(entities[i]->dashDirection.x == 0 && entities[i]->dashDirection.y == 0) { continue; }
+        entities[i]->position.x += entities[i]->dashDirection.x * entities[i]->dashDistance;
+        entities[i]->position.y += entities[i]->dashDirection.y * entities[i]->dashDistance;
+        entities[i]->dashDirection = Vector2(0, 0);
+        entities[i]->previousPosition = entities[i]->position;
     }
 }
 
@@ -1188,6 +1242,8 @@ void SpawnEnemy(entity base, float healthXOffset, int healthSize)
     healthHitbox.damagedCooldown = 0;
     entity* hitbox = allocAndAddEntity(healthHitbox);
     newEnemy->child = hitbox;
+    newEnemy->damagedCooldown = 0;
+    newEnemy->dashCooldown = 0;
 }
 
 void SpawnEnemies()
@@ -1196,7 +1252,6 @@ void SpawnEnemies()
     {
         entity bigEnemy = GetBigEnemyTemplate();
         SetStartPosition(&bigEnemy, GetRandomEnemySpawnPosition());
-        bigEnemy.damagedCooldown = 0;
         SpawnEnemy(bigEnemy, 36.0f, 16);
     }
 
@@ -1204,7 +1259,6 @@ void SpawnEnemies()
     {
         entity fastEnemy = GetFastEnemyTemplate();
         SetStartPosition(&fastEnemy, GetRandomEnemySpawnPosition());
-        fastEnemy.damagedCooldown = 0;
         SpawnEnemy(fastEnemy, 10.0f, 4);
     }
 
@@ -1212,8 +1266,22 @@ void SpawnEnemies()
     {
         entity normalEnemy = GetNormalEnemyTemplate();
         SetStartPosition(&normalEnemy, GetRandomEnemySpawnPosition());
-        normalEnemy.damagedCooldown = 0;
         SpawnEnemy(normalEnemy, 12.0f, 6);
+    }
+
+
+    for(int i = 0; i < waves[currentWaveIndex].bossEnemyCount; i++)
+    {
+        entity bossEnemy = GetBossEnemyTemplate();
+        SetStartPosition(&bossEnemy, GetRandomEnemySpawnPosition());
+        SpawnEnemy(bossEnemy, 48.0f, 24);
+    }
+
+    for(int i = 0; i < waves[currentWaveIndex].dashyEnemyCount; i++)
+    {
+        entity dashyEnemy = GetDashyEnemyTemplate();
+        SetStartPosition(&dashyEnemy, GetRandomEnemySpawnPosition());
+        SpawnEnemy(dashyEnemy, 10.0f, 4);
     }
 }
 
@@ -1221,9 +1289,15 @@ void PrepareWaves()
 {
     for(int i = 0; i < WAVES_COUNT; i++)
     {
+        if(i % 10 == 0 && i != 0)
+        {
+            waves[i].bigEnemyCount = i / 10;
+            continue;
+        }
         int currentHumanIndex = i + 1;
         waves[i].bigEnemyCount = currentHumanIndex / 3;
         waves[i].fastEnemyCount = currentHumanIndex / 2;
+        waves[i].dashyEnemyCount = (currentHumanIndex - 2) / 2;
         waves[i].normalEnemyCount = currentHumanIndex;// (currentHumanIndex + 1) / 2;
         waves[i].wavePrize = 50 * currentHumanIndex;
     }
@@ -1276,11 +1350,17 @@ int main()
         BeginDrawing();
             ClearBackground(SKYBLUE);
             UpdatePlayerMovement();
+            UpdatePlayerDash();
+            UpdatePlayerAttackCooldowns();
+            UpdatePlayerEquipment();
             UpdatePlayerAttack();
             DeleteDeadEnemies();
             UpdateEnemiesTarget();
             UpdateEnemiesRegeneration();
             UpdateEnemiesMovement();
+            ExecuteEnemiesFlip();
+            UpdateEnemiesDash();
+            ExecuteEnemiesDash();
             UpdateEnemiesAttack();
             UpdateEnemiesVelocity();
             UpdateHealthHitBoxes();

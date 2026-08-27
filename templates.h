@@ -105,6 +105,58 @@ entity GetFastEnemyTemplate()
     return fastEnemy;
 }
 
+entity GetBossEnemyTemplate()
+{
+    entity newEntity = GetBasicTemplate();
+    newEntity.size = Vector2(96, 96);
+    newEntity.pivot = Vector2(0.5f, 0.5f);
+    newEntity.defaultColor = ORANGE;
+    newEntity.type = ENEMY;
+    newEntity.dashingEnemy = true;
+    newEntity.dashDistance = 128;
+    newEntity.dashCooldown = 5.0f;
+    newEntity.speed = 0.5f;
+    newEntity.attackDamage = 25;
+    newEntity.attackCooldown = 0.5f;
+    newEntity.attackRange = 100.0f;
+    newEntity.health = 100;
+    newEntity.damagedCooldown = 0.125f;
+    newEntity.damagedColor = RED;
+    newEntity.stamina = 500.0f;
+    newEntity.staminaRegenerationSpeed = 100.0f;
+    newEntity.flipTimer = 2.0f;
+    newEntity.cashDropAmount = 250;
+    newEntity.templateIndex = 12;
+    newEntity.drag = 16.0f;
+    return newEntity;
+}
+
+entity GetDashyEnemyTemplate()
+{
+    entity newEntity = GetBasicTemplate();
+    newEntity.size = Vector2(16, 16);
+    newEntity.pivot = Vector2(0.5f, 0.5f);
+    newEntity.defaultColor = PURPLE;
+    newEntity.type = ENEMY;
+    newEntity.dashingEnemy = true;
+    newEntity.dashDistance = 128;
+    newEntity.dashCooldown = 2.0f;
+    newEntity.speed = 3.0f;
+    newEntity.attackDamage = 10;
+    newEntity.attackCooldown = 0.25f;
+    newEntity.attackRange = 25.0f;
+    newEntity.health = 30;
+    newEntity.damagedCooldown = 0.125f;
+    newEntity.damagedColor = RED;
+    newEntity.stamina = 500.0f;
+    newEntity.staminaRegenerationSpeed = 100.0f;
+    newEntity.flipTimer = 0.5f;
+    newEntity.cashDropAmount = 150;
+    newEntity.templateIndex = 13;
+    newEntity.drag = 8.0f;
+    return newEntity;
+}
+
 entity GetHealthHitboxTemplate()
 {
     entity healthHitbox = GetBasicTemplate();
@@ -323,6 +375,8 @@ entity GetTemplate(int templateIndex)
         case 9: return GetUpgradeButtonTemplate();
         case 10: return GetBuyButtonTemplate();
         case 11: return GetNormalEnemyTemplate();
+        case 12: return GetBossEnemyTemplate();
+        case 13: return GetDashyEnemyTemplate();
         default: return GetBasicTemplate();
     }
 };
