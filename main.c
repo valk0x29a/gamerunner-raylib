@@ -9,7 +9,7 @@
 #include <string.h>
 
 #define NEXT_WAVE_TIMER 20.0f
-#define SAFE_ZONE_RADIUS 20.0f
+#define SAFE_ZONE_RADIUS 96.0f
 
 #define Vector2(x,y) (Vector2){x, y}
 
@@ -316,7 +316,7 @@ void UpdatePlayerMovement()
     {
         if(entities[i]->type != PLAYER) { continue; }
         entity* player = entities[i];
-        int speed = player->speed;
+        float speed = player->speed * GetFrameTime();
         player->dashDirection = Vector2(0, 0);
         if(IsKeyDown(KEY_W))
         {
@@ -641,7 +641,7 @@ void UpdateEnemiesMovement()
         if(entities[i]->isRegenerating) { continue; }
         if(entities[i]->target == NULL) { continue; }
 
-        float speed = entities[i]->speed;
+        float speed = entities[i]->speed * GetFrameTime();
         Vector2 enemyPos = entities[i]->position;
         Vector2 playerPos = entities[i]->target->position;
         if(enemyPos.x < playerPos.x)

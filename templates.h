@@ -27,7 +27,7 @@ entity GetPlayerTemplate()
     player.pivot = Vector2(0.5f, 0.5f);
     player.defaultColor = VIOLET;
     player.type = PLAYER;
-    player.speed = 2.5f;
+    player.speed = 180.0f;
     player.dashDistance = 128;
     player.health = 100;
     player.damagedCooldown = 0.125f;
@@ -43,7 +43,7 @@ entity GetNormalEnemyTemplate()
     newEntity.pivot = Vector2(0.5f, 0.5f);
     newEntity.defaultColor = GREEN;
     newEntity.type = ENEMY;
-    newEntity.speed = 2.0f;
+    newEntity.speed = 150.0f;
     newEntity.attackDamage = 10;
     newEntity.attackCooldown = 0.5f;
     newEntity.attackRange = 25.0f;
@@ -66,7 +66,7 @@ entity GetBigEnemyTemplate()
     bigEnemy.pivot = Vector2(0.5f, 0.5f);
     bigEnemy.defaultColor = DARKPURPLE;
     bigEnemy.type = ENEMY;
-    bigEnemy.speed = 0.5f;
+    bigEnemy.speed = 35.0f;
     bigEnemy.attackDamage = 20;
     bigEnemy.attackCooldown = 0.5f;
     bigEnemy.attackRange = 50.0f;
@@ -89,7 +89,7 @@ entity GetFastEnemyTemplate()
     fastEnemy.pivot = Vector2(0.5f, 0.5f);
     fastEnemy.defaultColor = DARKPURPLE;
     fastEnemy.type = ENEMY;
-    fastEnemy.speed = 3.0f;
+    fastEnemy.speed = 225.0f;
     fastEnemy.attackDamage = 10;
     fastEnemy.attackCooldown = 0.25f;
     fastEnemy.attackRange = 25.0f;
@@ -115,7 +115,7 @@ entity GetBossEnemyTemplate()
     newEntity.dashingEnemy = true;
     newEntity.dashDistance = 128;
     newEntity.dashCooldown = 5.0f;
-    newEntity.speed = 0.5f;
+    newEntity.speed = 35.0f;
     newEntity.attackDamage = 25;
     newEntity.attackCooldown = 0.5f;
     newEntity.attackRange = 100.0f;
@@ -141,7 +141,7 @@ entity GetDashyEnemyTemplate()
     newEntity.dashingEnemy = true;
     newEntity.dashDistance = 128;
     newEntity.dashCooldown = 2.0f;
-    newEntity.speed = 3.0f;
+    newEntity.speed = 225.0f;
     newEntity.attackDamage = 10;
     newEntity.attackCooldown = 0.25f;
     newEntity.attackRange = 25.0f;
