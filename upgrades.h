@@ -297,11 +297,11 @@ void PrepareUpgrades()
     sharpenerDamageUpgradesPrices[2] = 300;
     sharpenerDamageUpgradesPrices[3] = 400;
 
-    shotgunMagazineUpgrades[0] = 3;
-    shotgunMagazineUpgrades[1] = 4;
-    shotgunMagazineUpgrades[2] = 5;
-    shotgunMagazineUpgrades[3] = 6;
-    shotgunMagazineUpgrades[4] = 7;
+    shotgunMagazineUpgrades[0] = 4;
+    shotgunMagazineUpgrades[1] = 5;
+    shotgunMagazineUpgrades[2] = 6;
+    shotgunMagazineUpgrades[3] = 7;
+    shotgunMagazineUpgrades[4] = 8;
     shotgunMagazineUpgradesPrices[0] = 100;
     shotgunMagazineUpgradesPrices[1] = 200;
     shotgunMagazineUpgradesPrices[2] = 300;
@@ -317,11 +317,11 @@ void PrepareUpgrades()
     shotgunCooldownUpgradesPrices[2] = 300;
     shotgunCooldownUpgradesPrices[3] = 400;
 
-    shotgunBulletCountUpgrades[0] = 2;
-    shotgunBulletCountUpgrades[1] = 3;
-    shotgunBulletCountUpgrades[2] = 4;
-    shotgunBulletCountUpgrades[3] = 5;
-    shotgunBulletCountUpgrades[4] = 6;
+    shotgunBulletCountUpgrades[0] = 3;
+    shotgunBulletCountUpgrades[1] = 4;
+    shotgunBulletCountUpgrades[2] = 5;
+    shotgunBulletCountUpgrades[3] = 6;
+    shotgunBulletCountUpgrades[4] = 7;
     shotgunBulletCountUpgradesPrices[0] = 100;
     shotgunBulletCountUpgradesPrices[1] = 200;
     shotgunBulletCountUpgradesPrices[2] = 300;

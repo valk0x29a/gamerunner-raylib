@@ -71,7 +71,7 @@ typedef struct wave
     int wavePrize;
 } wave;
 
-#define WAVES_COUNT 10
+#define WAVES_COUNT 32
 wave waves[WAVES_COUNT];
 
 wave currentWave;
@@ -1310,7 +1310,7 @@ void ReloadGame()
     nextWaveTimer = NEXT_WAVE_TIMER;
     currentWaveIndex = 0;
     enemiesCount = 0;
-    playerCash = 0;
+    playerCash = 100;
     currentHandgunUpgrade = 0;
     currentDashUpgrade = 0;
     currentMaxHealthUpgrade = 0;
