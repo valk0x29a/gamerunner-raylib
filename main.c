@@ -377,7 +377,8 @@ void ShootBullet(Vector2 targetPosition)
 
     float x = result.hitPosition.x;
     float marginOfError = 1.0f;
-    bool isHittingFront = e->isFlipped ? x < e->position.x + e->size.x - marginOfError : x > e->position.x + marginOfError;
+    Vector2 entityCorner = GetEntityCorner(e);
+    bool isHittingFront = e->isFlipped ? x < entityCorner.x + e->size.x - marginOfError : x > entityCorner.x + marginOfError;
     float attackMultiplier = isHittingFront ? 0.5f : 1.0f;
     e->health -= equippedWeapon->attackDamage * attackMultiplier;
     e->damagedCooldown = GetTemplate(e->templateIndex).damagedCooldown;
