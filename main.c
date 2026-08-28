@@ -18,19 +18,6 @@
 #include "entity.h"
 #include "templates.h"
 
-void SetStartPosition(entity* e, Vector2 position)
-{
-    e->position = position;
-    e->previousPosition = e->position;
-}
-
-void SetStartPositionAndSize(entity* e, Vector2 position, Vector2 size)
-{
-    e->position = position;
-    e->previousPosition = e->position;
-    e->size = size;
-}
-
 void ReloadGame();
 void EndWave();
 void SpawnEnemies();
@@ -88,12 +75,11 @@ typedef struct wave
 wave waves[WAVES_COUNT];
 
 wave currentWave;
-
-int enemiesCount = 0;
-
 int currentWaveIndex = 0;
 
 float nextWaveTimer = NEXT_WAVE_TIMER;
+
+int enemiesCount = 0;
 
 int playerCash = 100;
 
@@ -105,6 +91,19 @@ Vector2 GetEntityCorner(entity* entity)
 {
     Vector2 offset = Vector2Multiply(entity->pivot, entity->size);
     return Vector2Subtract(entity->position, offset);
+}
+
+void SetStartPosition(entity* e, Vector2 position)
+{
+    e->position = position;
+    e->previousPosition = e->position;
+}
+
+void SetStartPositionAndSize(entity* e, Vector2 position, Vector2 size)
+{
+    e->position = position;
+    e->previousPosition = e->position;
+    e->size = size;
 }
 
 float getSqrDistance(Vector2 a, Vector2 b)
@@ -185,36 +184,6 @@ bool isEntityColliding(int entityIndex, uint entityTypeMask)
     return false;
 }
 
-Vector2 isRayCollidingWithSegment(Vector2 s1, Vector2 s2, Vector2 r1, Vector2 r2, bool *colliding)
-{
-    float denominator = (r2.x - r1.x) * (s2.y - s1.y) - (s2.x - s1.x) * (r2.y - r1.y);
-    float r = ((s2.x - s1.x) * (r1.y - s1.y) - (r1.x - s1.x) * (s2.y - s1.y)) / denominator;
-    if(r < 0) { *colliding = false; return Vector2Zero(); }
-    float s = ((s1.x - r1.x) * (r2.y - r1.y) - (r2.x - r1.x) * (s1.y - r1.y)) / denominator;
-    if(s < 0 || s > 1) { *colliding = false; return Vector2Zero(); }
-    *colliding = true;
-    Vector2 result = { s * (s2.x - s1.x) + s1.x, s * (s2.y - s1.y) + s1.y };
-    return result;
-}
-
-bool isRayCollidingWithEntity(Vector2 r1, Vector2 r2, entity* e)
-{
-    // A----B
-    // |    |
-    // |    |
-    // D----C
-    Vector2 entityCornerA = GetEntityCorner(e);
-    Vector2 entityCornerB = { entityCornerA.x + e->size.x, entityCornerA.y };
-    Vector2 entityCornerC = { entityCornerA.x + e->size.x, entityCornerA.y + e->size.y };
-    Vector2 entityCornerD = { entityCornerA.x, entityCornerA.y + e->size.y };
-    bool a, b, c, d;
-    isRayCollidingWithSegment(entityCornerA, entityCornerB, r1, r2, &a);
-    isRayCollidingWithSegment(entityCornerB, entityCornerC, r1, r2, &b);
-    isRayCollidingWithSegment(entityCornerC, entityCornerD, r1, r2, &c);
-    isRayCollidingWithSegment(entityCornerD, entityCornerA, r1, r2, &d);
-    return a || b || c || d;
-}
-
 RayCastHitResult RayCastHit(Vector2 r1, Vector2 r2, uint entityTypeMask)
 {
     Vector2 closestHit = Vector2Zero();
@@ -235,16 +204,16 @@ RayCastHitResult RayCastHit(Vector2 r1, Vector2 r2, uint entityTypeMask)
 
         Vector2 results[4];
         bool colliding[4];
-        results[0] = isRayCollidingWithSegment(entityCornerA, entityCornerB, r1, r2, &colliding[0]);
-        results[1] = isRayCollidingWithSegment(entityCornerB, entityCornerC, r1, r2, &colliding[1]);
-        results[2] = isRayCollidingWithSegment(entityCornerC, entityCornerD, r1, r2, &colliding[2]);
-        results[3] = isRayCollidingWithSegment(entityCornerD, entityCornerA, r1, r2, &colliding[3]);
+        colliding[0] = CheckCollisionLines(entityCornerA, entityCornerB, r1, r2, &results[0]);
+        colliding[1] = CheckCollisionLines(entityCornerB, entityCornerC, r1, r2, &results[1]);
+        colliding[2] = CheckCollisionLines(entityCornerC, entityCornerD, r1, r2, &results[2]);
+        colliding[3] = CheckCollisionLines(entityCornerD, entityCornerA, r1, r2, &results[3]);
         float distance;
         for(int j = 0; j < 4; j++)
         {
             if(!colliding[j]) { continue; }
             distance = getSqrDistance(r1, results[j]);
-            // printf("result index: %d, pos x: %f , y: %f\n", j, results[j].x, results[j].y);
+            printf("result index: %d, pos x: %f , y: %f\n", j, results[j].x, results[j].y);
             if(distance < closestDistance)
             {
                 closestHit = results[j];
@@ -282,10 +251,10 @@ RayCastAllHitsResult RayCastAllHits(Vector2 r1, Vector2 r2, uint entityTypeMask,
 
         Vector2 results[4];
         bool colliding[4];
-        results[0] = isRayCollidingWithSegment(entityCornerA, entityCornerB, r1, r2, &colliding[0]);
-        results[1] = isRayCollidingWithSegment(entityCornerB, entityCornerC, r1, r2, &colliding[1]);
-        results[2] = isRayCollidingWithSegment(entityCornerC, entityCornerD, r1, r2, &colliding[2]);
-        results[3] = isRayCollidingWithSegment(entityCornerD, entityCornerA, r1, r2, &colliding[3]);
+        colliding[0] = CheckCollisionLines(entityCornerA, entityCornerB, r1, r2, &results[0]);
+        colliding[1] = CheckCollisionLines(entityCornerB, entityCornerC, r1, r2, &results[1]);
+        colliding[2] = CheckCollisionLines(entityCornerC, entityCornerD, r1, r2, &results[2]);
+        colliding[3] = CheckCollisionLines(entityCornerD, entityCornerA, r1, r2, &results[3]);
 
         for(int j = 0; j < 4; j++)
         {
@@ -638,6 +607,7 @@ void UpdateEnemiesRegeneration()
         if(entities[i]->stamina > GetTemplate(entities[i]->templateIndex).stamina)
         {
             entities[i]->isRegenerating = false;
+            entities[i]->defaultColor = GetTemplate(entities[i]->templateIndex).defaultColor;
         }
     }
 }
@@ -738,6 +708,7 @@ void ExecuteEnemiesDash()
         if(entities[i]->type != ENEMY) { continue; }
         if(!entities[i]->dashingEnemy) { continue; }
         if(entities[i]->dashDirection.x == 0 && entities[i]->dashDirection.y == 0) { continue; }
+        if(entities[i]->isRegenerating) { entities[i]->dashDirection = Vector2(0, 0); continue; }
         entities[i]->position.x += entities[i]->dashDirection.x * entities[i]->dashDistance;
         entities[i]->position.y += entities[i]->dashDirection.y * entities[i]->dashDistance;
         entities[i]->dashDirection = Vector2(0, 0);
@@ -1135,6 +1106,7 @@ void UpdateEnemiesVelocity()
         if(entities[i]->stamina < 0)
         {
             entities[i]->isRegenerating = true;
+            entities[i]->defaultColor = GRAY;
         }
         entities[i]->previousPosition = entities[i]->position;
     }
@@ -1409,15 +1381,8 @@ int main()
                 //printf("i: %d\n", i);
                 // printf("entityType: %d\n", entities[i]->entityType);
                 Vector2 startPos = GetEntityCorner(entities[i]);
-                if(entities[i]->damagedCooldown > 0)
-                {
-                    DrawRectangleV(startPos, entities[i]->size, entities[i]->damagedColor);
-                }
-                else
-                {
-                    Color outputColor = entities[i]->isRegenerating ? GRAY : entities[i]->defaultColor;
-                    DrawRectangleV(startPos, entities[i]->size, outputColor);
-                }
+                Color outputColor = entities[i]->damagedCooldown > 0 ? entities[i]->damagedColor : entities[i]->defaultColor;
+                DrawRectangleV(startPos, entities[i]->size, outputColor);
             }
             DrawRadiusVFX();
             DrawPlayerHUD();
