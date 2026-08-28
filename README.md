@@ -2,9 +2,9 @@
 WSAD - player movement  
 Space - dash ( if you have number of dashes > 0 )  
 E - open upgrader ( yellow box in the middle )  
-Q - fire expldoer ( if acquired )  
+Q - fire exploder ( if acquired )  
 1/2 - switch equipped weapon  
-3/4/5 - switch eqipped grenade ( if acquired )  
+3/4/5 - switch equipped grenade ( if acquired )  
 LMB - fire equipped weapon  
 RMB - launch equipped grenade  
 ## Quick Guide:
