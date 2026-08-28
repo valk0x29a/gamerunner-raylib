@@ -1,6 +1,6 @@
 Keybinds:
 ---------------
-WSAD - player movement
+WSAD - player movement  
 Space - dash ( if you have number of dahses > 0)
 E - open upgrader ( yellow box in the middle )
 Q - fire expldoer ( if acquired )
