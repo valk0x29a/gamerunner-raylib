@@ -1,6 +1,6 @@
 ## Keybinds:
 WSAD - player movement  
-Space - dash ( if you have number of dahses > 0 )  
+Space - dash ( if you have number of dashes > 0 )  
 E - open upgrader ( yellow box in the middle )  
 Q - fire expldoer ( if acquired )  
 1/2 - switch equipped weapon  
